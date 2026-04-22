@@ -44,6 +44,9 @@ void reportMenu(void);
 void clearInputBuffer(void);
 int getMenuChoice(void);
 void pauseScreen(void);
+void getTextInput(const char *prompt, char *buffer, int size);
+int generateNextDonorId(void);
+void displayDonor(const Donor *donor);
 
 void addDonor(void);
 void viewAllDonors(void);
@@ -270,21 +273,176 @@ void pauseScreen(void)
     getchar();
 }
 
+void getTextInput(const char *prompt, char *buffer, int size)
+{
+    printf("%s", prompt);
+    fgets(buffer, size, stdin);
+    buffer[strcspn(buffer, "\n")] = '\0';
+}
+
+int generateNextDonorId(void)
+{
+    FILE *file;
+    Donor donor;
+    int lastId = 0;
+
+    file = fopen(DONOR_FILE, "rb");
+
+    if (file == NULL)
+    {
+        return 1;
+    }
+
+    /* Read all donors to find the last used ID. */
+    while (fread(&donor, sizeof(Donor), 1, file) == 1)
+    {
+        lastId = donor.donorId;
+    }
+
+    fclose(file);
+    return lastId + 1;
+}
+
+void displayDonor(const Donor *donor)
+{
+    printf("\n-----------------------------------\n");
+    printf("Donor ID           : %d\n", donor->donorId);
+    printf("Name               : %s\n", donor->name);
+    printf("Age                : %d\n", donor->age);
+    printf("Gender             : %s\n", donor->gender);
+    printf("Blood Group        : %s\n", donor->bloodGroup);
+    printf("Phone              : %s\n", donor->phone);
+    printf("Address            : %s\n", donor->address);
+    printf("Last Donation Date : %s\n", donor->lastDonationDate);
+    printf("Availability       : %s\n", donor->availabilityStatus);
+    printf("-----------------------------------\n");
+}
+
 void addDonor(void)
 {
-    printf("\nAdd Donor feature will be implemented in the next step.\n");
+    FILE *file;
+    Donor donor;
+
+    donor.donorId = generateNextDonorId();
+    file = fopen(DONOR_FILE, "ab");
+
+    if (file == NULL)
+    {
+        printf("\nUnable to open donor file.\n");
+        pauseScreen();
+        return;
+    }
+
+    printf("\n--- Add Donor ---\n");
+    printf("Assigned Donor ID: %d\n", donor.donorId);
+
+    getTextInput("Enter donor name: ", donor.name, sizeof(donor.name));
+
+    printf("Enter age: ");
+    while (scanf("%d", &donor.age) != 1)
+    {
+        printf("Invalid input. Enter age again: ");
+        clearInputBuffer();
+    }
+    clearInputBuffer();
+
+    getTextInput("Enter gender: ", donor.gender, sizeof(donor.gender));
+    getTextInput("Enter blood group: ", donor.bloodGroup, sizeof(donor.bloodGroup));
+    getTextInput("Enter phone number: ", donor.phone, sizeof(donor.phone));
+    getTextInput("Enter address: ", donor.address, sizeof(donor.address));
+    getTextInput("Enter last donation date: ", donor.lastDonationDate, sizeof(donor.lastDonationDate));
+    getTextInput("Enter availability status: ", donor.availabilityStatus, sizeof(donor.availabilityStatus));
+
+    /* Save the whole donor record in binary format. */
+    if (fwrite(&donor, sizeof(Donor), 1, file) != 1)
+    {
+        printf("\nFailed to save donor information.\n");
+        fclose(file);
+        pauseScreen();
+        return;
+    }
+
+    fclose(file);
+
+    printf("\nDonor added successfully.\n");
+    displayDonor(&donor);
     pauseScreen();
 }
 
 void viewAllDonors(void)
 {
-    printf("\nView All Donors feature will be implemented in the next step.\n");
+    FILE *file;
+    Donor donor;
+    int found = 0;
+
+    file = fopen(DONOR_FILE, "rb");
+
+    if (file == NULL)
+    {
+        printf("\nNo donor records found yet.\n");
+        pauseScreen();
+        return;
+    }
+
+    printf("\n--- All Donors ---\n");
+
+    /* Read each donor one by one from the binary file. */
+    while (fread(&donor, sizeof(Donor), 1, file) == 1)
+    {
+        displayDonor(&donor);
+        found = 1;
+    }
+
+    if (!found)
+    {
+        printf("\nNo donor records found.\n");
+    }
+
+    fclose(file);
     pauseScreen();
 }
 
 void searchDonorById(void)
 {
-    printf("\nSearch Donor by ID feature will be implemented in the next step.\n");
+    FILE *file;
+    Donor donor;
+    int searchId;
+    int found = 0;
+
+    file = fopen(DONOR_FILE, "rb");
+
+    if (file == NULL)
+    {
+        printf("\nNo donor records found yet.\n");
+        pauseScreen();
+        return;
+    }
+
+    printf("\nEnter donor ID to search: ");
+    while (scanf("%d", &searchId) != 1)
+    {
+        printf("Invalid input. Enter donor ID again: ");
+        clearInputBuffer();
+    }
+    clearInputBuffer();
+
+    while (fread(&donor, sizeof(Donor), 1, file) == 1)
+    {
+        if (donor.donorId == searchId)
+        {
+            printf("\nDonor found.\n");
+            displayDonor(&donor);
+            found = 1;
+            break;
+        }
+    }
+
+    if (!found)
+    {
+        printf("\nNo donor found with ID %d.\n", searchId);
+    }
+
+    fclose(file);
     pauseScreen();
 }
 

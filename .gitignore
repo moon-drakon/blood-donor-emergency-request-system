@@ -1,0 +1,5 @@
+*.exe
+*.dat
+donor_report.txt
+request_report.txt
+activity_log.txt
