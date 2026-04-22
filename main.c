@@ -5,6 +5,7 @@
 #define DONOR_FILE "donors.dat"
 #define TEMP_DONOR_FILE "temp_donors.dat"
 #define REQUEST_FILE "requests.dat"
+#define TEMP_REQUEST_FILE "temp_requests.dat"
 #define DONOR_REPORT_FILE "donor_report.txt"
 #define REQUEST_REPORT_FILE "request_report.txt"
 #define ACTIVITY_LOG_FILE "activity_log.txt"
@@ -47,7 +48,9 @@ int getMenuChoice(void);
 void pauseScreen(void);
 void getTextInput(const char *prompt, char *buffer, int size);
 int generateNextDonorId(void);
+int generateNextRequestId(void);
 void displayDonor(const Donor *donor);
+void displayRequest(const Request *request);
 
 void addDonor(void);
 void viewAllDonors(void);
@@ -309,6 +312,29 @@ int generateNextDonorId(void)
     return lastId + 1;
 }
 
+int generateNextRequestId(void)
+{
+    FILE *file;
+    Request request;
+    int lastId = 0;
+
+    file = fopen(REQUEST_FILE, "rb");
+
+    if (file == NULL)
+    {
+        return 1;
+    }
+
+    /* Read all requests to find the last used ID. */
+    while (fread(&request, sizeof(Request), 1, file) == 1)
+    {
+        lastId = request.requestId;
+    }
+
+    fclose(file);
+    return lastId + 1;
+}
+
 void displayDonor(const Donor *donor)
 {
     printf("\n-----------------------------------\n");
@@ -321,6 +347,21 @@ void displayDonor(const Donor *donor)
     printf("Address            : %s\n", donor->address);
     printf("Last Donation Date : %s\n", donor->lastDonationDate);
     printf("Availability       : %s\n", donor->availabilityStatus);
+    printf("-----------------------------------\n");
+}
+
+void displayRequest(const Request *request)
+{
+    printf("\n-----------------------------------\n");
+    printf("Request ID         : %d\n", request->requestId);
+    printf("Patient Name       : %s\n", request->patientName);
+    printf("Blood Group Needed : %s\n", request->bloodGroupNeeded);
+    printf("Units Needed       : %d\n", request->unitsNeeded);
+    printf("Hospital Name      : %s\n", request->hospitalName);
+    printf("Location           : %s\n", request->location);
+    printf("Contact Number     : %s\n", request->contactNumber);
+    printf("Urgency Level      : %s\n", request->urgencyLevel);
+    printf("Request Status     : %s\n", request->requestStatus);
     printf("-----------------------------------\n");
 }
 
@@ -707,31 +748,288 @@ void changeDonorAvailability(void)
 
 void addRequest(void)
 {
-    printf("\nAdd Emergency Request feature will be implemented in the next step.\n");
+    FILE *file;
+    Request request;
+
+    request.requestId = generateNextRequestId();
+    file = fopen(REQUEST_FILE, "ab");
+
+    if (file == NULL)
+    {
+        printf("\nUnable to open request file.\n");
+        pauseScreen();
+        return;
+    }
+
+    printf("\n--- Add Emergency Request ---\n");
+    printf("Assigned Request ID: %d\n", request.requestId);
+
+    getTextInput("Enter patient name: ", request.patientName, sizeof(request.patientName));
+    getTextInput("Enter blood group needed: ",
+                 request.bloodGroupNeeded,
+                 sizeof(request.bloodGroupNeeded));
+
+    printf("Enter units needed: ");
+    while (scanf("%d", &request.unitsNeeded) != 1)
+    {
+        printf("Invalid input. Enter units again: ");
+        clearInputBuffer();
+    }
+    clearInputBuffer();
+
+    getTextInput("Enter hospital name: ", request.hospitalName, sizeof(request.hospitalName));
+    getTextInput("Enter location: ", request.location, sizeof(request.location));
+    getTextInput("Enter contact number: ", request.contactNumber, sizeof(request.contactNumber));
+    getTextInput("Enter urgency level: ", request.urgencyLevel, sizeof(request.urgencyLevel));
+    getTextInput("Enter request status: ", request.requestStatus, sizeof(request.requestStatus));
+
+    /* Save the whole request record in binary format. */
+    if (fwrite(&request, sizeof(Request), 1, file) != 1)
+    {
+        printf("\nFailed to save request information.\n");
+        fclose(file);
+        pauseScreen();
+        return;
+    }
+
+    fclose(file);
+
+    printf("\nEmergency request added successfully.\n");
+    displayRequest(&request);
     pauseScreen();
 }
 
 void viewAllRequests(void)
 {
-    printf("\nView All Requests feature will be implemented in the next step.\n");
+    FILE *file;
+    Request request;
+    int found = 0;
+
+    file = fopen(REQUEST_FILE, "rb");
+
+    if (file == NULL)
+    {
+        printf("\nNo request records found yet.\n");
+        pauseScreen();
+        return;
+    }
+
+    printf("\n--- All Emergency Requests ---\n");
+
+    /* Read each request one by one from the binary file. */
+    while (fread(&request, sizeof(Request), 1, file) == 1)
+    {
+        displayRequest(&request);
+        found = 1;
+    }
+
+    if (!found)
+    {
+        printf("\nNo request records found.\n");
+    }
+
+    fclose(file);
     pauseScreen();
 }
 
 void searchRequestById(void)
 {
-    printf("\nSearch Request by ID feature will be implemented in the next step.\n");
+    FILE *file;
+    Request request;
+    int searchId;
+    int found = 0;
+
+    file = fopen(REQUEST_FILE, "rb");
+
+    if (file == NULL)
+    {
+        printf("\nNo request records found yet.\n");
+        pauseScreen();
+        return;
+    }
+
+    printf("\nEnter request ID to search: ");
+    while (scanf("%d", &searchId) != 1)
+    {
+        printf("Invalid input. Enter request ID again: ");
+        clearInputBuffer();
+    }
+    clearInputBuffer();
+
+    while (fread(&request, sizeof(Request), 1, file) == 1)
+    {
+        if (request.requestId == searchId)
+        {
+            printf("\nRequest found.\n");
+            displayRequest(&request);
+            found = 1;
+            break;
+        }
+    }
+
+    if (!found)
+    {
+        printf("\nNo request found with ID %d.\n", searchId);
+    }
+
+    fclose(file);
     pauseScreen();
 }
 
 void updateRequestStatus(void)
 {
-    printf("\nUpdate Request Status feature will be implemented in the next step.\n");
+    FILE *sourceFile;
+    FILE *tempFile;
+    Request request;
+    int searchId;
+    int found = 0;
+
+    sourceFile = fopen(REQUEST_FILE, "rb");
+
+    if (sourceFile == NULL)
+    {
+        printf("\nNo request records found yet.\n");
+        pauseScreen();
+        return;
+    }
+
+    tempFile = fopen(TEMP_REQUEST_FILE, "wb");
+
+    if (tempFile == NULL)
+    {
+        fclose(sourceFile);
+        printf("\nUnable to open temporary request file.\n");
+        pauseScreen();
+        return;
+    }
+
+    printf("\nEnter request ID to update status: ");
+    while (scanf("%d", &searchId) != 1)
+    {
+        printf("Invalid input. Enter request ID again: ");
+        clearInputBuffer();
+    }
+    clearInputBuffer();
+
+    while (fread(&request, sizeof(Request), 1, sourceFile) == 1)
+    {
+        if (request.requestId == searchId)
+        {
+            found = 1;
+
+            printf("\nCurrent request information:\n");
+            displayRequest(&request);
+            getTextInput("Enter new request status: ",
+                         request.requestStatus,
+                         sizeof(request.requestStatus));
+        }
+
+        if (fwrite(&request, sizeof(Request), 1, tempFile) != 1)
+        {
+            fclose(sourceFile);
+            fclose(tempFile);
+            remove(TEMP_REQUEST_FILE);
+            printf("\nFailed to update request status.\n");
+            pauseScreen();
+            return;
+        }
+    }
+
+    fclose(sourceFile);
+    fclose(tempFile);
+
+    if (!found)
+    {
+        remove(TEMP_REQUEST_FILE);
+        printf("\nNo request found with ID %d.\n", searchId);
+        pauseScreen();
+        return;
+    }
+
+    if (remove(REQUEST_FILE) != 0 || rename(TEMP_REQUEST_FILE, REQUEST_FILE) != 0)
+    {
+        printf("\nFailed to replace request file after status update.\n");
+        pauseScreen();
+        return;
+    }
+
+    printf("\nRequest status updated successfully.\n");
     pauseScreen();
 }
 
 void deleteRequest(void)
 {
-    printf("\nDelete Request feature will be implemented in the next step.\n");
+    FILE *sourceFile;
+    FILE *tempFile;
+    Request request;
+    int searchId;
+    int found = 0;
+
+    sourceFile = fopen(REQUEST_FILE, "rb");
+
+    if (sourceFile == NULL)
+    {
+        printf("\nNo request records found yet.\n");
+        pauseScreen();
+        return;
+    }
+
+    tempFile = fopen(TEMP_REQUEST_FILE, "wb");
+
+    if (tempFile == NULL)
+    {
+        fclose(sourceFile);
+        printf("\nUnable to open temporary request file.\n");
+        pauseScreen();
+        return;
+    }
+
+    printf("\nEnter request ID to delete: ");
+    while (scanf("%d", &searchId) != 1)
+    {
+        printf("Invalid input. Enter request ID again: ");
+        clearInputBuffer();
+    }
+    clearInputBuffer();
+
+    while (fread(&request, sizeof(Request), 1, sourceFile) == 1)
+    {
+        if (request.requestId == searchId)
+        {
+            found = 1;
+            continue;
+        }
+
+        if (fwrite(&request, sizeof(Request), 1, tempFile) != 1)
+        {
+            fclose(sourceFile);
+            fclose(tempFile);
+            remove(TEMP_REQUEST_FILE);
+            printf("\nFailed to delete request information.\n");
+            pauseScreen();
+            return;
+        }
+    }
+
+    fclose(sourceFile);
+    fclose(tempFile);
+
+    if (!found)
+    {
+        remove(TEMP_REQUEST_FILE);
+        printf("\nNo request found with ID %d.\n", searchId);
+        pauseScreen();
+        return;
+    }
+
+    if (remove(REQUEST_FILE) != 0 || rename(TEMP_REQUEST_FILE, REQUEST_FILE) != 0)
+    {
+        printf("\nFailed to replace request file after deletion.\n");
+        pauseScreen();
+        return;
+    }
+
+    printf("\nRequest deleted successfully.\n");
     pauseScreen();
 }
 
