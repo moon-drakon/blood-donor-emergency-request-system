@@ -3,6 +3,7 @@
 #include <string.h>
 
 #define DONOR_FILE "donors.dat"
+#define TEMP_DONOR_FILE "temp_donors.dat"
 #define REQUEST_FILE "requests.dat"
 #define DONOR_REPORT_FILE "donor_report.txt"
 #define REQUEST_REPORT_FILE "request_report.txt"
@@ -53,6 +54,7 @@ void viewAllDonors(void);
 void searchDonorById(void);
 void updateDonor(void);
 void deleteDonor(void);
+void changeDonorAvailability(void);
 
 void addRequest(void);
 void viewAllRequests(void);
@@ -117,6 +119,7 @@ void showDonorMenu(void)
     printf("3. Search Donor by ID\n");
     printf("4. Update Donor\n");
     printf("5. Delete Donor\n");
+    printf("6. Change Donor Availability\n");
     printf("0. Back to Main Menu\n");
     printf("-----------------------------------\n");
 }
@@ -168,6 +171,9 @@ void donorMenu(void)
             break;
         case 5:
             deleteDonor();
+            break;
+        case 6:
+            changeDonorAvailability();
             break;
         case 0:
             return;
@@ -448,13 +454,254 @@ void searchDonorById(void)
 
 void updateDonor(void)
 {
-    printf("\nUpdate Donor feature will be implemented in the next step.\n");
+    FILE *sourceFile;
+    FILE *tempFile;
+    Donor donor;
+    int searchId;
+    int found = 0;
+
+    sourceFile = fopen(DONOR_FILE, "rb");
+
+    if (sourceFile == NULL)
+    {
+        printf("\nNo donor records found yet.\n");
+        pauseScreen();
+        return;
+    }
+
+    tempFile = fopen(TEMP_DONOR_FILE, "wb");
+
+    if (tempFile == NULL)
+    {
+        fclose(sourceFile);
+        printf("\nUnable to open temporary donor file.\n");
+        pauseScreen();
+        return;
+    }
+
+    printf("\nEnter donor ID to update: ");
+    while (scanf("%d", &searchId) != 1)
+    {
+        printf("Invalid input. Enter donor ID again: ");
+        clearInputBuffer();
+    }
+    clearInputBuffer();
+
+    while (fread(&donor, sizeof(Donor), 1, sourceFile) == 1)
+    {
+        if (donor.donorId == searchId)
+        {
+            found = 1;
+
+            printf("\nCurrent donor information:\n");
+            displayDonor(&donor);
+            printf("\nEnter new information for this donor.\n");
+
+            getTextInput("Enter donor name: ", donor.name, sizeof(donor.name));
+
+            printf("Enter age: ");
+            while (scanf("%d", &donor.age) != 1)
+            {
+                printf("Invalid input. Enter age again: ");
+                clearInputBuffer();
+            }
+            clearInputBuffer();
+
+            getTextInput("Enter gender: ", donor.gender, sizeof(donor.gender));
+            getTextInput("Enter blood group: ", donor.bloodGroup, sizeof(donor.bloodGroup));
+            getTextInput("Enter phone number: ", donor.phone, sizeof(donor.phone));
+            getTextInput("Enter address: ", donor.address, sizeof(donor.address));
+            getTextInput("Enter last donation date: ", donor.lastDonationDate, sizeof(donor.lastDonationDate));
+        }
+
+        /* Write every donor to the temporary file, including the updated one. */
+        if (fwrite(&donor, sizeof(Donor), 1, tempFile) != 1)
+        {
+            fclose(sourceFile);
+            fclose(tempFile);
+            remove(TEMP_DONOR_FILE);
+            printf("\nFailed to update donor information.\n");
+            pauseScreen();
+            return;
+        }
+    }
+
+    fclose(sourceFile);
+    fclose(tempFile);
+
+    if (!found)
+    {
+        remove(TEMP_DONOR_FILE);
+        printf("\nNo donor found with ID %d.\n", searchId);
+        pauseScreen();
+        return;
+    }
+
+    if (remove(DONOR_FILE) != 0 || rename(TEMP_DONOR_FILE, DONOR_FILE) != 0)
+    {
+        printf("\nFailed to replace donor file after update.\n");
+        pauseScreen();
+        return;
+    }
+
+    printf("\nDonor updated successfully.\n");
     pauseScreen();
 }
 
 void deleteDonor(void)
 {
-    printf("\nDelete Donor feature will be implemented in the next step.\n");
+    FILE *sourceFile;
+    FILE *tempFile;
+    Donor donor;
+    int searchId;
+    int found = 0;
+
+    sourceFile = fopen(DONOR_FILE, "rb");
+
+    if (sourceFile == NULL)
+    {
+        printf("\nNo donor records found yet.\n");
+        pauseScreen();
+        return;
+    }
+
+    tempFile = fopen(TEMP_DONOR_FILE, "wb");
+
+    if (tempFile == NULL)
+    {
+        fclose(sourceFile);
+        printf("\nUnable to open temporary donor file.\n");
+        pauseScreen();
+        return;
+    }
+
+    printf("\nEnter donor ID to delete: ");
+    while (scanf("%d", &searchId) != 1)
+    {
+        printf("Invalid input. Enter donor ID again: ");
+        clearInputBuffer();
+    }
+    clearInputBuffer();
+
+    while (fread(&donor, sizeof(Donor), 1, sourceFile) == 1)
+    {
+        if (donor.donorId == searchId)
+        {
+            found = 1;
+            continue;
+        }
+
+        if (fwrite(&donor, sizeof(Donor), 1, tempFile) != 1)
+        {
+            fclose(sourceFile);
+            fclose(tempFile);
+            remove(TEMP_DONOR_FILE);
+            printf("\nFailed to delete donor information.\n");
+            pauseScreen();
+            return;
+        }
+    }
+
+    fclose(sourceFile);
+    fclose(tempFile);
+
+    if (!found)
+    {
+        remove(TEMP_DONOR_FILE);
+        printf("\nNo donor found with ID %d.\n", searchId);
+        pauseScreen();
+        return;
+    }
+
+    if (remove(DONOR_FILE) != 0 || rename(TEMP_DONOR_FILE, DONOR_FILE) != 0)
+    {
+        printf("\nFailed to replace donor file after deletion.\n");
+        pauseScreen();
+        return;
+    }
+
+    printf("\nDonor deleted successfully.\n");
+    pauseScreen();
+}
+
+void changeDonorAvailability(void)
+{
+    FILE *sourceFile;
+    FILE *tempFile;
+    Donor donor;
+    int searchId;
+    int found = 0;
+
+    sourceFile = fopen(DONOR_FILE, "rb");
+
+    if (sourceFile == NULL)
+    {
+        printf("\nNo donor records found yet.\n");
+        pauseScreen();
+        return;
+    }
+
+    tempFile = fopen(TEMP_DONOR_FILE, "wb");
+
+    if (tempFile == NULL)
+    {
+        fclose(sourceFile);
+        printf("\nUnable to open temporary donor file.\n");
+        pauseScreen();
+        return;
+    }
+
+    printf("\nEnter donor ID to change availability: ");
+    while (scanf("%d", &searchId) != 1)
+    {
+        printf("Invalid input. Enter donor ID again: ");
+        clearInputBuffer();
+    }
+    clearInputBuffer();
+
+    while (fread(&donor, sizeof(Donor), 1, sourceFile) == 1)
+    {
+        if (donor.donorId == searchId)
+        {
+            found = 1;
+
+            printf("\nCurrent donor information:\n");
+            displayDonor(&donor);
+            getTextInput("Enter new availability status: ",
+                         donor.availabilityStatus,
+                         sizeof(donor.availabilityStatus));
+        }
+
+        if (fwrite(&donor, sizeof(Donor), 1, tempFile) != 1)
+        {
+            fclose(sourceFile);
+            fclose(tempFile);
+            remove(TEMP_DONOR_FILE);
+            printf("\nFailed to change donor availability.\n");
+            pauseScreen();
+            return;
+        }
+    }
+
+    fclose(sourceFile);
+    fclose(tempFile);
+
+    if (!found)
+    {
+        remove(TEMP_DONOR_FILE);
+        printf("\nNo donor found with ID %d.\n", searchId);
+        pauseScreen();
+        return;
+    }
+
+    if (remove(DONOR_FILE) != 0 || rename(TEMP_DONOR_FILE, DONOR_FILE) != 0)
+    {
+        printf("\nFailed to replace donor file after availability change.\n");
+        pauseScreen();
+        return;
+    }
+
+    printf("\nDonor availability updated successfully.\n");
     pauseScreen();
 }
 
