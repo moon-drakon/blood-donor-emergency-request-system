@@ -48,6 +48,9 @@ void clearInputBuffer(void);
 int getMenuChoice(void);
 void pauseScreen(void);
 void getTextInput(const char *prompt, char *buffer, int size);
+void printLine(char symbol, int count);
+void printSectionHeader(const char *title);
+void printStatusMessage(const char *type, const char *message);
 int generateNextDonorId(void);
 int generateNextRequestId(void);
 int isDonorAvailable(const Donor *donor);
@@ -99,11 +102,11 @@ int main(void)
             reportMenu();
             break;
         case 0:
-            printf("\nThank you for using the system.\n");
-            printf("Exiting program...\n");
+            printStatusMessage("SUCCESS", "Thank you for using the system.");
+            printf("Program closed successfully.\n");
             return 0;
         default:
-            printf("\nInvalid choice. Please try again.\n");
+            printStatusMessage("ERROR", "Invalid menu choice. Please try again.");
             pauseScreen();
         }
     }
@@ -112,53 +115,51 @@ int main(void)
 void showMainMenu(void)
 {
     printf("\n");
-    printf("===========================================================\n");
-    printf("   NSU Blood Donor and Emergency Request Management System\n");
-    printf("===========================================================\n");
-    printf("1. Donor Management\n");
-    printf("2. Emergency Request Management\n");
-    printf("3. Reports and Activity Log\n");
-    printf("0. Exit\n");
-    printf("===========================================================\n");
+    printSectionHeader("NSU Blood Donor and Emergency Request Management System");
+    printf("  1. Donor Management\n");
+    printf("  2. Emergency Request Management\n");
+    printf("  3. Reports and Activity Log\n");
+    printf("  0. Exit\n");
+    printLine('=', 63);
 }
 
 void showDonorMenu(void)
 {
-    printf("\n--- Donor Management ---\n");
-    printf("1. Add Donor\n");
-    printf("2. View All Donors\n");
-    printf("3. Search Donor by ID\n");
-    printf("4. Update Donor\n");
-    printf("5. Delete Donor\n");
-    printf("6. Change Donor Availability\n");
-    printf("0. Back to Main Menu\n");
-    printf("-----------------------------------\n");
+    printSectionHeader("Donor Management");
+    printf("  1. Add Donor\n");
+    printf("  2. View All Donors\n");
+    printf("  3. Search Donor by ID\n");
+    printf("  4. Update Donor\n");
+    printf("  5. Delete Donor\n");
+    printf("  6. Change Donor Availability\n");
+    printf("  0. Back to Main Menu\n");
+    printLine('-', 63);
 }
 
 void showRequestMenu(void)
 {
-    printf("\n--- Emergency Request Management ---\n");
-    printf("1. Add Emergency Request\n");
-    printf("2. View All Requests\n");
-    printf("3. Search Request by ID\n");
-    printf("4. Update Request Status\n");
-    printf("5. Delete Request\n");
-    printf("6. Match Donors by Blood Group\n");
-    printf("7. Match Donors by Request ID\n");
-    printf("0. Back to Main Menu\n");
-    printf("------------------------------------\n");
+    printSectionHeader("Emergency Request Management");
+    printf("  1. Add Emergency Request\n");
+    printf("  2. View All Requests\n");
+    printf("  3. Search Request by ID\n");
+    printf("  4. Update Request Status\n");
+    printf("  5. Delete Request\n");
+    printf("  6. Match Donors by Blood Group\n");
+    printf("  7. Match Donors by Request ID\n");
+    printf("  0. Back to Main Menu\n");
+    printLine('-', 63);
 }
 
 void showReportMenu(void)
 {
-    printf("\n--- Reports and Activity Log ---\n");
-    printf("1. Show Donor Summary\n");
-    printf("2. Show Request Summary\n");
-    printf("3. Export Donor Report to TXT\n");
-    printf("4. Export Request Report to TXT\n");
-    printf("5. View Activity Log\n");
-    printf("0. Back to Main Menu\n");
-    printf("--------------------------------\n");
+    printSectionHeader("Reports and Activity Log");
+    printf("  1. Show Donor Summary\n");
+    printf("  2. Show Request Summary\n");
+    printf("  3. Export Donor Report to TXT\n");
+    printf("  4. Export Request Report to TXT\n");
+    printf("  5. View Activity Log\n");
+    printf("  0. Back to Main Menu\n");
+    printLine('-', 63);
 }
 
 void donorMenu(void)
@@ -193,7 +194,7 @@ void donorMenu(void)
         case 0:
             return;
         default:
-            printf("\nInvalid choice. Please try again.\n");
+            printStatusMessage("ERROR", "Invalid menu choice. Please try again.");
             pauseScreen();
         }
     }
@@ -234,7 +235,7 @@ void requestMenu(void)
         case 0:
             return;
         default:
-            printf("\nInvalid choice. Please try again.\n");
+            printStatusMessage("ERROR", "Invalid menu choice. Please try again.");
             pauseScreen();
         }
     }
@@ -269,7 +270,7 @@ void reportMenu(void)
         case 0:
             return;
         default:
-            printf("\nInvalid choice. Please try again.\n");
+            printStatusMessage("ERROR", "Invalid menu choice. Please try again.");
             pauseScreen();
         }
     }
@@ -292,7 +293,7 @@ int getMenuChoice(void)
 
     while (scanf("%d", &choice) != 1)
     {
-        printf("Invalid input. Please enter a number: ");
+        printf("[ERROR] Invalid input. Please enter a number: ");
         clearInputBuffer();
     }
 
@@ -328,6 +329,31 @@ void getCurrentDateTime(char *buffer, int size)
     }
 
     strftime(buffer, size, "%Y-%m-%d %H:%M:%S", timeInfo);
+}
+
+void printLine(char symbol, int count)
+{
+    int i;
+
+    for (i = 0; i < count; i++)
+    {
+        putchar(symbol);
+    }
+
+    putchar('\n');
+}
+
+void printSectionHeader(const char *title)
+{
+    printf("\n");
+    printLine('=', 63);
+    printf("%31s\n", title);
+    printLine('=', 63);
+}
+
+void printStatusMessage(const char *type, const char *message)
+{
+    printf("\n[%s] %s\n", type, message);
 }
 
 int generateNextDonorId(void)
@@ -404,32 +430,32 @@ void printMatchedDonorRow(const Donor *donor)
 
 void displayDonor(const Donor *donor)
 {
-    printf("\n-----------------------------------\n");
-    printf("Donor ID           : %d\n", donor->donorId);
-    printf("Name               : %s\n", donor->name);
-    printf("Age                : %d\n", donor->age);
-    printf("Gender             : %s\n", donor->gender);
-    printf("Blood Group        : %s\n", donor->bloodGroup);
-    printf("Phone              : %s\n", donor->phone);
-    printf("Address            : %s\n", donor->address);
-    printf("Last Donation Date : %s\n", donor->lastDonationDate);
-    printf("Availability       : %s\n", isDonorAvailable(donor) ? "Available" : "Unavailable");
-    printf("-----------------------------------\n");
+    printLine('-', 57);
+    printf("%-20s : %d\n", "Donor ID", donor->donorId);
+    printf("%-20s : %s\n", "Name", donor->name);
+    printf("%-20s : %d\n", "Age", donor->age);
+    printf("%-20s : %s\n", "Gender", donor->gender);
+    printf("%-20s : %s\n", "Blood Group", donor->bloodGroup);
+    printf("%-20s : %s\n", "Phone", donor->phone);
+    printf("%-20s : %s\n", "Address", donor->address);
+    printf("%-20s : %s\n", "Last Donation Date", donor->lastDonationDate);
+    printf("%-20s : %s\n", "Availability", isDonorAvailable(donor) ? "Available" : "Unavailable");
+    printLine('-', 57);
 }
 
 void displayRequest(const Request *request)
 {
-    printf("\n-----------------------------------\n");
-    printf("Request ID         : %d\n", request->requestId);
-    printf("Patient Name       : %s\n", request->patientName);
-    printf("Blood Group Needed : %s\n", request->bloodGroupNeeded);
-    printf("Units Needed       : %d\n", request->unitsNeeded);
-    printf("Hospital Name      : %s\n", request->hospitalName);
-    printf("Location           : %s\n", request->location);
-    printf("Contact Number     : %s\n", request->contactNumber);
-    printf("Urgency Level      : %s\n", request->urgencyLevel);
-    printf("Request Status     : %s\n", request->requestStatus);
-    printf("-----------------------------------\n");
+    printLine('-', 57);
+    printf("%-20s : %d\n", "Request ID", request->requestId);
+    printf("%-20s : %s\n", "Patient Name", request->patientName);
+    printf("%-20s : %s\n", "Blood Group Needed", request->bloodGroupNeeded);
+    printf("%-20s : %d\n", "Units Needed", request->unitsNeeded);
+    printf("%-20s : %s\n", "Hospital Name", request->hospitalName);
+    printf("%-20s : %s\n", "Location", request->location);
+    printf("%-20s : %s\n", "Contact Number", request->contactNumber);
+    printf("%-20s : %s\n", "Urgency Level", request->urgencyLevel);
+    printf("%-20s : %s\n", "Request Status", request->requestStatus);
+    printLine('-', 57);
 }
 
 void addDonor(void)
@@ -442,13 +468,13 @@ void addDonor(void)
 
     if (file == NULL)
     {
-        printf("\nUnable to open donor file.\n");
+        printStatusMessage("ERROR", "Unable to open donor file.");
         pauseScreen();
         return;
     }
 
-    printf("\n--- Add Donor ---\n");
-    printf("Assigned Donor ID: %d\n", donor.donorId);
+    printSectionHeader("Add Donor");
+    printf("Assigned Donor ID : %d\n", donor.donorId);
 
     getTextInput("Enter donor name: ", donor.name, sizeof(donor.name));
 
@@ -472,7 +498,7 @@ void addDonor(void)
     /* Save the whole donor record in binary format. */
     if (fwrite(&donor, sizeof(Donor), 1, file) != 1)
     {
-        printf("\nFailed to save donor information.\n");
+        printStatusMessage("ERROR", "Failed to save donor information.");
         fclose(file);
         pauseScreen();
         return;
@@ -480,7 +506,7 @@ void addDonor(void)
 
     fclose(file);
 
-    printf("\nDonor added successfully.\n");
+    printStatusMessage("SUCCESS", "Donor added successfully.");
     displayDonor(&donor);
     writeActivityLog("Added a new donor record.");
     pauseScreen();
@@ -496,12 +522,12 @@ void viewAllDonors(void)
 
     if (file == NULL)
     {
-        printf("\nNo donor records found yet.\n");
+        printStatusMessage("INFO", "No donor records found yet.");
         pauseScreen();
         return;
     }
 
-    printf("\n--- All Donors ---\n");
+    printSectionHeader("All Donors");
 
     /* Read each donor one by one from the binary file. */
     while (fread(&donor, sizeof(Donor), 1, file) == 1)
@@ -512,7 +538,7 @@ void viewAllDonors(void)
 
     if (!found)
     {
-        printf("\nNo donor records found.\n");
+        printStatusMessage("INFO", "No donor records found.");
     }
 
     fclose(file);
@@ -530,7 +556,7 @@ void searchDonorById(void)
 
     if (file == NULL)
     {
-        printf("\nNo donor records found yet.\n");
+        printStatusMessage("INFO", "No donor records found yet.");
         pauseScreen();
         return;
     }
@@ -547,7 +573,7 @@ void searchDonorById(void)
     {
         if (donor.donorId == searchId)
         {
-            printf("\nDonor found.\n");
+            printStatusMessage("SUCCESS", "Donor found.");
             displayDonor(&donor);
             found = 1;
             break;
@@ -556,7 +582,7 @@ void searchDonorById(void)
 
     if (!found)
     {
-        printf("\nNo donor found with ID %d.\n", searchId);
+        printf("\n[INFO] No donor found with ID %d.\n", searchId);
     }
 
     fclose(file);
@@ -575,7 +601,7 @@ void updateDonor(void)
 
     if (sourceFile == NULL)
     {
-        printf("\nNo donor records found yet.\n");
+        printStatusMessage("INFO", "No donor records found yet.");
         pauseScreen();
         return;
     }
@@ -585,7 +611,7 @@ void updateDonor(void)
     if (tempFile == NULL)
     {
         fclose(sourceFile);
-        printf("\nUnable to open temporary donor file.\n");
+        printStatusMessage("ERROR", "Unable to open temporary donor file.");
         pauseScreen();
         return;
     }
@@ -604,9 +630,9 @@ void updateDonor(void)
         {
             found = 1;
 
-            printf("\nCurrent donor information:\n");
+            printSectionHeader("Current Donor Information");
             displayDonor(&donor);
-            printf("\nEnter new information for this donor.\n");
+            printStatusMessage("INFO", "Enter the updated donor information below.");
 
             getTextInput("Enter donor name: ", donor.name, sizeof(donor.name));
 
@@ -631,7 +657,7 @@ void updateDonor(void)
             fclose(sourceFile);
             fclose(tempFile);
             remove(TEMP_DONOR_FILE);
-            printf("\nFailed to update donor information.\n");
+            printStatusMessage("ERROR", "Failed to update donor information.");
             pauseScreen();
             return;
         }
@@ -643,19 +669,19 @@ void updateDonor(void)
     if (!found)
     {
         remove(TEMP_DONOR_FILE);
-        printf("\nNo donor found with ID %d.\n", searchId);
+        printf("\n[INFO] No donor found with ID %d.\n", searchId);
         pauseScreen();
         return;
     }
 
     if (remove(DONOR_FILE) != 0 || rename(TEMP_DONOR_FILE, DONOR_FILE) != 0)
     {
-        printf("\nFailed to replace donor file after update.\n");
+        printStatusMessage("ERROR", "Failed to replace donor file after update.");
         pauseScreen();
         return;
     }
 
-    printf("\nDonor updated successfully.\n");
+    printStatusMessage("SUCCESS", "Donor updated successfully.");
     writeActivityLog("Updated donor information.");
     pauseScreen();
 }
@@ -672,7 +698,7 @@ void deleteDonor(void)
 
     if (sourceFile == NULL)
     {
-        printf("\nNo donor records found yet.\n");
+        printStatusMessage("INFO", "No donor records found yet.");
         pauseScreen();
         return;
     }
@@ -682,7 +708,7 @@ void deleteDonor(void)
     if (tempFile == NULL)
     {
         fclose(sourceFile);
-        printf("\nUnable to open temporary donor file.\n");
+        printStatusMessage("ERROR", "Unable to open temporary donor file.");
         pauseScreen();
         return;
     }
@@ -708,7 +734,7 @@ void deleteDonor(void)
             fclose(sourceFile);
             fclose(tempFile);
             remove(TEMP_DONOR_FILE);
-            printf("\nFailed to delete donor information.\n");
+            printStatusMessage("ERROR", "Failed to delete donor information.");
             pauseScreen();
             return;
         }
@@ -720,19 +746,19 @@ void deleteDonor(void)
     if (!found)
     {
         remove(TEMP_DONOR_FILE);
-        printf("\nNo donor found with ID %d.\n", searchId);
+        printf("\n[INFO] No donor found with ID %d.\n", searchId);
         pauseScreen();
         return;
     }
 
     if (remove(DONOR_FILE) != 0 || rename(TEMP_DONOR_FILE, DONOR_FILE) != 0)
     {
-        printf("\nFailed to replace donor file after deletion.\n");
+        printStatusMessage("ERROR", "Failed to replace donor file after deletion.");
         pauseScreen();
         return;
     }
 
-    printf("\nDonor deleted successfully.\n");
+    printStatusMessage("SUCCESS", "Donor deleted successfully.");
     writeActivityLog("Deleted a donor record.");
     pauseScreen();
 }
@@ -749,7 +775,7 @@ void changeDonorAvailability(void)
 
     if (sourceFile == NULL)
     {
-        printf("\nNo donor records found yet.\n");
+        printStatusMessage("INFO", "No donor records found yet.");
         pauseScreen();
         return;
     }
@@ -759,7 +785,7 @@ void changeDonorAvailability(void)
     if (tempFile == NULL)
     {
         fclose(sourceFile);
-        printf("\nUnable to open temporary donor file.\n");
+        printStatusMessage("ERROR", "Unable to open temporary donor file.");
         pauseScreen();
         return;
     }
@@ -778,7 +804,7 @@ void changeDonorAvailability(void)
         {
             found = 1;
 
-            printf("\nCurrent donor information:\n");
+            printSectionHeader("Current Donor Information");
             displayDonor(&donor);
             getTextInput("Enter new availability status (1 for available, 0 for unavailable): ",
                          donor.availabilityStatus,
@@ -790,7 +816,7 @@ void changeDonorAvailability(void)
             fclose(sourceFile);
             fclose(tempFile);
             remove(TEMP_DONOR_FILE);
-            printf("\nFailed to change donor availability.\n");
+            printStatusMessage("ERROR", "Failed to change donor availability.");
             pauseScreen();
             return;
         }
@@ -802,19 +828,19 @@ void changeDonorAvailability(void)
     if (!found)
     {
         remove(TEMP_DONOR_FILE);
-        printf("\nNo donor found with ID %d.\n", searchId);
+        printf("\n[INFO] No donor found with ID %d.\n", searchId);
         pauseScreen();
         return;
     }
 
     if (remove(DONOR_FILE) != 0 || rename(TEMP_DONOR_FILE, DONOR_FILE) != 0)
     {
-        printf("\nFailed to replace donor file after availability change.\n");
+        printStatusMessage("ERROR", "Failed to replace donor file after availability change.");
         pauseScreen();
         return;
     }
 
-    printf("\nDonor availability updated successfully.\n");
+    printStatusMessage("SUCCESS", "Donor availability updated successfully.");
     writeActivityLog("Changed donor availability status.");
     pauseScreen();
 }
@@ -829,13 +855,13 @@ void addRequest(void)
 
     if (file == NULL)
     {
-        printf("\nUnable to open request file.\n");
+        printStatusMessage("ERROR", "Unable to open request file.");
         pauseScreen();
         return;
     }
 
-    printf("\n--- Add Emergency Request ---\n");
-    printf("Assigned Request ID: %d\n", request.requestId);
+    printSectionHeader("Add Emergency Request");
+    printf("Assigned Request ID : %d\n", request.requestId);
 
     getTextInput("Enter patient name: ", request.patientName, sizeof(request.patientName));
     getTextInput("Enter blood group needed: ",
@@ -859,7 +885,7 @@ void addRequest(void)
     /* Save the whole request record in binary format. */
     if (fwrite(&request, sizeof(Request), 1, file) != 1)
     {
-        printf("\nFailed to save request information.\n");
+        printStatusMessage("ERROR", "Failed to save request information.");
         fclose(file);
         pauseScreen();
         return;
@@ -867,7 +893,7 @@ void addRequest(void)
 
     fclose(file);
 
-    printf("\nEmergency request added successfully.\n");
+    printStatusMessage("SUCCESS", "Emergency request added successfully.");
     displayRequest(&request);
     writeActivityLog("Added a new emergency request.");
     pauseScreen();
@@ -883,12 +909,12 @@ void viewAllRequests(void)
 
     if (file == NULL)
     {
-        printf("\nNo request records found yet.\n");
+        printStatusMessage("INFO", "No request records found yet.");
         pauseScreen();
         return;
     }
 
-    printf("\n--- All Emergency Requests ---\n");
+    printSectionHeader("All Emergency Requests");
 
     /* Read each request one by one from the binary file. */
     while (fread(&request, sizeof(Request), 1, file) == 1)
@@ -899,7 +925,7 @@ void viewAllRequests(void)
 
     if (!found)
     {
-        printf("\nNo request records found.\n");
+        printStatusMessage("INFO", "No request records found.");
     }
 
     fclose(file);
@@ -917,7 +943,7 @@ void searchRequestById(void)
 
     if (file == NULL)
     {
-        printf("\nNo request records found yet.\n");
+        printStatusMessage("INFO", "No request records found yet.");
         pauseScreen();
         return;
     }
@@ -934,7 +960,7 @@ void searchRequestById(void)
     {
         if (request.requestId == searchId)
         {
-            printf("\nRequest found.\n");
+            printStatusMessage("SUCCESS", "Request found.");
             displayRequest(&request);
             found = 1;
             break;
@@ -943,7 +969,7 @@ void searchRequestById(void)
 
     if (!found)
     {
-        printf("\nNo request found with ID %d.\n", searchId);
+        printf("\n[INFO] No request found with ID %d.\n", searchId);
     }
 
     fclose(file);
@@ -962,7 +988,7 @@ void updateRequestStatus(void)
 
     if (sourceFile == NULL)
     {
-        printf("\nNo request records found yet.\n");
+        printStatusMessage("INFO", "No request records found yet.");
         pauseScreen();
         return;
     }
@@ -972,7 +998,7 @@ void updateRequestStatus(void)
     if (tempFile == NULL)
     {
         fclose(sourceFile);
-        printf("\nUnable to open temporary request file.\n");
+        printStatusMessage("ERROR", "Unable to open temporary request file.");
         pauseScreen();
         return;
     }
@@ -991,7 +1017,7 @@ void updateRequestStatus(void)
         {
             found = 1;
 
-            printf("\nCurrent request information:\n");
+            printSectionHeader("Current Request Information");
             displayRequest(&request);
             getTextInput("Enter new request status: ",
                          request.requestStatus,
@@ -1003,7 +1029,7 @@ void updateRequestStatus(void)
             fclose(sourceFile);
             fclose(tempFile);
             remove(TEMP_REQUEST_FILE);
-            printf("\nFailed to update request status.\n");
+            printStatusMessage("ERROR", "Failed to update request status.");
             pauseScreen();
             return;
         }
@@ -1015,19 +1041,19 @@ void updateRequestStatus(void)
     if (!found)
     {
         remove(TEMP_REQUEST_FILE);
-        printf("\nNo request found with ID %d.\n", searchId);
+        printf("\n[INFO] No request found with ID %d.\n", searchId);
         pauseScreen();
         return;
     }
 
     if (remove(REQUEST_FILE) != 0 || rename(TEMP_REQUEST_FILE, REQUEST_FILE) != 0)
     {
-        printf("\nFailed to replace request file after status update.\n");
+        printStatusMessage("ERROR", "Failed to replace request file after status update.");
         pauseScreen();
         return;
     }
 
-    printf("\nRequest status updated successfully.\n");
+    printStatusMessage("SUCCESS", "Request status updated successfully.");
     writeActivityLog("Updated emergency request status.");
     pauseScreen();
 }
@@ -1044,7 +1070,7 @@ void deleteRequest(void)
 
     if (sourceFile == NULL)
     {
-        printf("\nNo request records found yet.\n");
+        printStatusMessage("INFO", "No request records found yet.");
         pauseScreen();
         return;
     }
@@ -1054,7 +1080,7 @@ void deleteRequest(void)
     if (tempFile == NULL)
     {
         fclose(sourceFile);
-        printf("\nUnable to open temporary request file.\n");
+        printStatusMessage("ERROR", "Unable to open temporary request file.");
         pauseScreen();
         return;
     }
@@ -1080,7 +1106,7 @@ void deleteRequest(void)
             fclose(sourceFile);
             fclose(tempFile);
             remove(TEMP_REQUEST_FILE);
-            printf("\nFailed to delete request information.\n");
+            printStatusMessage("ERROR", "Failed to delete request information.");
             pauseScreen();
             return;
         }
@@ -1092,19 +1118,19 @@ void deleteRequest(void)
     if (!found)
     {
         remove(TEMP_REQUEST_FILE);
-        printf("\nNo request found with ID %d.\n", searchId);
+        printf("\n[INFO] No request found with ID %d.\n", searchId);
         pauseScreen();
         return;
     }
 
     if (remove(REQUEST_FILE) != 0 || rename(TEMP_REQUEST_FILE, REQUEST_FILE) != 0)
     {
-        printf("\nFailed to replace request file after deletion.\n");
+        printStatusMessage("ERROR", "Failed to replace request file after deletion.");
         pauseScreen();
         return;
     }
 
-    printf("\nRequest deleted successfully.\n");
+    printStatusMessage("SUCCESS", "Request deleted successfully.");
     writeActivityLog("Deleted an emergency request.");
     pauseScreen();
 }
@@ -1120,26 +1146,24 @@ void matchDonorsByBloodGroup(void)
 
     if (donorFile == NULL)
     {
-        printf("\nNo donor records found yet.\n");
+        printStatusMessage("INFO", "No donor records found yet.");
         pauseScreen();
         return;
     }
 
     getTextInput("\nEnter blood group to match: ", bloodGroup, sizeof(bloodGroup));
 
-    printf("\n==============================================================\n");
-    printf("               MATCHED AVAILABLE DONORS\n");
-    printf("==============================================================\n");
-    printf("Blood Group Filter: %s\n", bloodGroup);
-    printf("Only donors with availability = 1 are shown.\n");
-    printf("--------------------------------------------------------------\n");
-    printf("%-8s %-20s %-10s %-15s %-12s\n",
+    printSectionHeader("Matched Available Donors");
+    printf("%-18s : %s\n", "Blood Group Filter", bloodGroup);
+    printf("%-18s : %s\n", "Availability Rule", "Only donors with status 1 are shown");
+    printLine('-', 76);
+    printf("%-8s %-22s %-10s %-16s %-12s\n",
            "ID",
            "Name",
            "Group",
            "Phone",
            "Status");
-    printf("--------------------------------------------------------------\n");
+    printLine('-', 76);
 
     while (fread(&donor, sizeof(Donor), 1, donorFile) == 1)
     {
@@ -1152,10 +1176,10 @@ void matchDonorsByBloodGroup(void)
 
     if (!found)
     {
-        printf("No available donors found for blood group %s.\n", bloodGroup);
+        printf("[INFO] No available donors found for blood group %s.\n", bloodGroup);
     }
 
-    printf("==============================================================\n");
+    printLine('=', 76);
     fclose(donorFile);
     writeActivityLog("Matched donors by blood group.");
     pauseScreen();
@@ -1175,7 +1199,7 @@ void matchDonorsByRequestId(void)
 
     if (requestFile == NULL)
     {
-        printf("\nNo request records found yet.\n");
+        printStatusMessage("INFO", "No request records found yet.");
         pauseScreen();
         return;
     }
@@ -1201,7 +1225,7 @@ void matchDonorsByRequestId(void)
 
     if (!requestFound)
     {
-        printf("\nNo request found with ID %d.\n", requestId);
+        printf("\n[INFO] No request found with ID %d.\n", requestId);
         pauseScreen();
         return;
     }
@@ -1210,27 +1234,26 @@ void matchDonorsByRequestId(void)
 
     if (donorFile == NULL)
     {
-        printf("\nNo donor records found yet.\n");
+        printStatusMessage("INFO", "No donor records found yet.");
         pauseScreen();
         return;
     }
 
-    printf("\n==============================================================\n");
-    printf("              DONOR MATCH RESULT FOR REQUEST ID %d\n", request.requestId);
-    printf("==============================================================\n");
-    printf("Patient Name       : %s\n", request.patientName);
-    printf("Blood Group Needed : %s\n", request.bloodGroupNeeded);
-    printf("Units Needed       : %d\n", request.unitsNeeded);
-    printf("Urgency Level      : %s\n", request.urgencyLevel);
-    printf("Request Status     : %s\n", request.requestStatus);
-    printf("--------------------------------------------------------------\n");
-    printf("%-8s %-20s %-10s %-15s %-12s\n",
+    printSectionHeader("Donor Match Result");
+    printf("%-18s : %d\n", "Request ID", request.requestId);
+    printf("%-18s : %s\n", "Patient Name", request.patientName);
+    printf("%-18s : %s\n", "Blood Group Needed", request.bloodGroupNeeded);
+    printf("%-18s : %d\n", "Units Needed", request.unitsNeeded);
+    printf("%-18s : %s\n", "Urgency Level", request.urgencyLevel);
+    printf("%-18s : %s\n", "Request Status", request.requestStatus);
+    printLine('-', 76);
+    printf("%-8s %-22s %-10s %-16s %-12s\n",
            "ID",
            "Name",
            "Group",
            "Phone",
            "Status");
-    printf("--------------------------------------------------------------\n");
+    printLine('-', 76);
 
     while (fread(&donor, sizeof(Donor), 1, donorFile) == 1)
     {
@@ -1244,10 +1267,10 @@ void matchDonorsByRequestId(void)
 
     if (!donorFound)
     {
-        printf("No available donors found for request ID %d.\n", request.requestId);
+        printf("[INFO] No available donors found for request ID %d.\n", request.requestId);
     }
 
-    printf("==============================================================\n");
+    printLine('=', 76);
     fclose(donorFile);
     writeActivityLog("Matched donors by request ID.");
     pauseScreen();
@@ -1265,7 +1288,7 @@ void showDonorSummary(void)
 
     if (file == NULL)
     {
-        printf("\nNo donor records found yet.\n");
+        printStatusMessage("INFO", "No donor records found yet.");
         pauseScreen();
         return;
     }
@@ -1286,13 +1309,11 @@ void showDonorSummary(void)
 
     fclose(file);
 
-    printf("\n=================================================\n");
-    printf("               DONOR SUMMARY REPORT\n");
-    printf("=================================================\n");
-    printf("Total Donors         : %d\n", totalDonors);
-    printf("Available Donors     : %d\n", availableDonors);
-    printf("Unavailable Donors   : %d\n", unavailableDonors);
-    printf("=================================================\n");
+    printSectionHeader("Donor Summary Report");
+    printf("%-22s : %d\n", "Total Donors", totalDonors);
+    printf("%-22s : %d\n", "Available Donors", availableDonors);
+    printf("%-22s : %d\n", "Unavailable Donors", unavailableDonors);
+    printLine('=', 63);
 
     writeActivityLog("Viewed donor summary report.");
     pauseScreen();
@@ -1311,7 +1332,7 @@ void showRequestSummary(void)
 
     if (file == NULL)
     {
-        printf("\nNo request records found yet.\n");
+        printStatusMessage("INFO", "No request records found yet.");
         pauseScreen();
         return;
     }
@@ -1338,14 +1359,12 @@ void showRequestSummary(void)
 
     fclose(file);
 
-    printf("\n=================================================\n");
-    printf("              REQUEST SUMMARY REPORT\n");
-    printf("=================================================\n");
-    printf("Total Requests       : %d\n", totalRequests);
-    printf("Pending Requests     : %d\n", pendingRequests);
-    printf("Fulfilled Requests   : %d\n", fulfilledRequests);
-    printf("Other Status         : %d\n", otherRequests);
-    printf("=================================================\n");
+    printSectionHeader("Request Summary Report");
+    printf("%-22s : %d\n", "Total Requests", totalRequests);
+    printf("%-22s : %d\n", "Pending Requests", pendingRequests);
+    printf("%-22s : %d\n", "Fulfilled Requests", fulfilledRequests);
+    printf("%-22s : %d\n", "Other Status", otherRequests);
+    printLine('=', 63);
 
     writeActivityLog("Viewed request summary report.");
     pauseScreen();
@@ -1365,7 +1384,7 @@ void exportDonorReportToTXT(void)
 
     if (dataFile == NULL)
     {
-        printf("\nNo donor records found yet.\n");
+        printStatusMessage("INFO", "No donor records found yet.");
         pauseScreen();
         return;
     }
@@ -1375,7 +1394,7 @@ void exportDonorReportToTXT(void)
     if (reportFile == NULL)
     {
         fclose(dataFile);
-        printf("\nUnable to create donor report file.\n");
+        printStatusMessage("ERROR", "Unable to create donor report file.");
         pauseScreen();
         return;
     }
@@ -1421,7 +1440,7 @@ void exportDonorReportToTXT(void)
     fclose(dataFile);
     fclose(reportFile);
 
-    printf("\nDonor report exported successfully to %s\n", DONOR_REPORT_FILE);
+    printf("\n[SUCCESS] Donor report exported to %s\n", DONOR_REPORT_FILE);
     writeActivityLog("Exported donor report to TXT.");
     pauseScreen();
 }
@@ -1441,7 +1460,7 @@ void exportRequestReportToTXT(void)
 
     if (dataFile == NULL)
     {
-        printf("\nNo request records found yet.\n");
+        printStatusMessage("INFO", "No request records found yet.");
         pauseScreen();
         return;
     }
@@ -1451,7 +1470,7 @@ void exportRequestReportToTXT(void)
     if (reportFile == NULL)
     {
         fclose(dataFile);
-        printf("\nUnable to create request report file.\n");
+        printStatusMessage("ERROR", "Unable to create request report file.");
         pauseScreen();
         return;
     }
@@ -1503,7 +1522,7 @@ void exportRequestReportToTXT(void)
     fclose(dataFile);
     fclose(reportFile);
 
-    printf("\nRequest report exported successfully to %s\n", REQUEST_REPORT_FILE);
+    printf("\n[SUCCESS] Request report exported to %s\n", REQUEST_REPORT_FILE);
     writeActivityLog("Exported request report to TXT.");
     pauseScreen();
 }
@@ -1517,21 +1536,19 @@ void viewActivityLog(void)
 
     if (logFile == NULL)
     {
-        printf("\nNo activity log found yet.\n");
+        printStatusMessage("INFO", "No activity log found yet.");
         pauseScreen();
         return;
     }
 
-    printf("\n============================================================\n");
-    printf("                     ACTIVITY LOG\n");
-    printf("============================================================\n");
+    printSectionHeader("Activity Log");
 
     while (fgets(line, sizeof(line), logFile) != NULL)
     {
         printf("%s", line);
     }
 
-    printf("============================================================\n");
+    printLine('=', 63);
     fclose(logFile);
     pauseScreen();
 }
