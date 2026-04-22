@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #define DONOR_FILE "donors.dat"
 #define TEMP_DONOR_FILE "temp_donors.dat"
@@ -49,6 +50,9 @@ void pauseScreen(void);
 void getTextInput(const char *prompt, char *buffer, int size);
 int generateNextDonorId(void);
 int generateNextRequestId(void);
+int isDonorAvailable(const Donor *donor);
+void printMatchedDonorRow(const Donor *donor);
+void getCurrentDateTime(char *buffer, int size);
 void displayDonor(const Donor *donor);
 void displayRequest(const Request *request);
 
@@ -64,9 +68,13 @@ void viewAllRequests(void);
 void searchRequestById(void);
 void updateRequestStatus(void);
 void deleteRequest(void);
+void matchDonorsByBloodGroup(void);
+void matchDonorsByRequestId(void);
 
-void exportDonorReport(void);
-void exportRequestReport(void);
+void showDonorSummary(void);
+void showRequestSummary(void);
+void exportDonorReportToTXT(void);
+void exportRequestReportToTXT(void);
 void viewActivityLog(void);
 void writeActivityLog(const char *action);
 
@@ -135,6 +143,8 @@ void showRequestMenu(void)
     printf("3. Search Request by ID\n");
     printf("4. Update Request Status\n");
     printf("5. Delete Request\n");
+    printf("6. Match Donors by Blood Group\n");
+    printf("7. Match Donors by Request ID\n");
     printf("0. Back to Main Menu\n");
     printf("------------------------------------\n");
 }
@@ -142,9 +152,11 @@ void showRequestMenu(void)
 void showReportMenu(void)
 {
     printf("\n--- Reports and Activity Log ---\n");
-    printf("1. Export Donor Report\n");
-    printf("2. Export Request Report\n");
-    printf("3. View Activity Log\n");
+    printf("1. Show Donor Summary\n");
+    printf("2. Show Request Summary\n");
+    printf("3. Export Donor Report to TXT\n");
+    printf("4. Export Request Report to TXT\n");
+    printf("5. View Activity Log\n");
     printf("0. Back to Main Menu\n");
     printf("--------------------------------\n");
 }
@@ -213,6 +225,12 @@ void requestMenu(void)
         case 5:
             deleteRequest();
             break;
+        case 6:
+            matchDonorsByBloodGroup();
+            break;
+        case 7:
+            matchDonorsByRequestId();
+            break;
         case 0:
             return;
         default:
@@ -234,12 +252,18 @@ void reportMenu(void)
         switch (choice)
         {
         case 1:
-            exportDonorReport();
+            showDonorSummary();
             break;
         case 2:
-            exportRequestReport();
+            showRequestSummary();
             break;
         case 3:
+            exportDonorReportToTXT();
+            break;
+        case 4:
+            exportRequestReportToTXT();
+            break;
+        case 5:
             viewActivityLog();
             break;
         case 0:
@@ -289,6 +313,23 @@ void getTextInput(const char *prompt, char *buffer, int size)
     buffer[strcspn(buffer, "\n")] = '\0';
 }
 
+void getCurrentDateTime(char *buffer, int size)
+{
+    time_t now;
+    struct tm *timeInfo;
+
+    now = time(NULL);
+    timeInfo = localtime(&now);
+
+    if (timeInfo == NULL)
+    {
+        snprintf(buffer, size, "Unknown Time");
+        return;
+    }
+
+    strftime(buffer, size, "%Y-%m-%d %H:%M:%S", timeInfo);
+}
+
 int generateNextDonorId(void)
 {
     FILE *file;
@@ -335,6 +376,32 @@ int generateNextRequestId(void)
     return lastId + 1;
 }
 
+int isDonorAvailable(const Donor *donor)
+{
+    if (strcmp(donor->availabilityStatus, "1") == 0)
+    {
+        return 1;
+    }
+
+    if (strcmp(donor->availabilityStatus, "Available") == 0 ||
+        strcmp(donor->availabilityStatus, "available") == 0)
+    {
+        return 1;
+    }
+
+    return 0;
+}
+
+void printMatchedDonorRow(const Donor *donor)
+{
+    printf("%-8d %-20s %-10s %-15s %-12s\n",
+           donor->donorId,
+           donor->name,
+           donor->bloodGroup,
+           donor->phone,
+           isDonorAvailable(donor) ? "Available" : "Unavailable");
+}
+
 void displayDonor(const Donor *donor)
 {
     printf("\n-----------------------------------\n");
@@ -346,7 +413,7 @@ void displayDonor(const Donor *donor)
     printf("Phone              : %s\n", donor->phone);
     printf("Address            : %s\n", donor->address);
     printf("Last Donation Date : %s\n", donor->lastDonationDate);
-    printf("Availability       : %s\n", donor->availabilityStatus);
+    printf("Availability       : %s\n", isDonorAvailable(donor) ? "Available" : "Unavailable");
     printf("-----------------------------------\n");
 }
 
@@ -398,7 +465,9 @@ void addDonor(void)
     getTextInput("Enter phone number: ", donor.phone, sizeof(donor.phone));
     getTextInput("Enter address: ", donor.address, sizeof(donor.address));
     getTextInput("Enter last donation date: ", donor.lastDonationDate, sizeof(donor.lastDonationDate));
-    getTextInput("Enter availability status: ", donor.availabilityStatus, sizeof(donor.availabilityStatus));
+    getTextInput("Enter availability status (1 for available, 0 for unavailable): ",
+                 donor.availabilityStatus,
+                 sizeof(donor.availabilityStatus));
 
     /* Save the whole donor record in binary format. */
     if (fwrite(&donor, sizeof(Donor), 1, file) != 1)
@@ -413,6 +482,7 @@ void addDonor(void)
 
     printf("\nDonor added successfully.\n");
     displayDonor(&donor);
+    writeActivityLog("Added a new donor record.");
     pauseScreen();
 }
 
@@ -586,6 +656,7 @@ void updateDonor(void)
     }
 
     printf("\nDonor updated successfully.\n");
+    writeActivityLog("Updated donor information.");
     pauseScreen();
 }
 
@@ -662,6 +733,7 @@ void deleteDonor(void)
     }
 
     printf("\nDonor deleted successfully.\n");
+    writeActivityLog("Deleted a donor record.");
     pauseScreen();
 }
 
@@ -708,7 +780,7 @@ void changeDonorAvailability(void)
 
             printf("\nCurrent donor information:\n");
             displayDonor(&donor);
-            getTextInput("Enter new availability status: ",
+            getTextInput("Enter new availability status (1 for available, 0 for unavailable): ",
                          donor.availabilityStatus,
                          sizeof(donor.availabilityStatus));
         }
@@ -743,6 +815,7 @@ void changeDonorAvailability(void)
     }
 
     printf("\nDonor availability updated successfully.\n");
+    writeActivityLog("Changed donor availability status.");
     pauseScreen();
 }
 
@@ -796,6 +869,7 @@ void addRequest(void)
 
     printf("\nEmergency request added successfully.\n");
     displayRequest(&request);
+    writeActivityLog("Added a new emergency request.");
     pauseScreen();
 }
 
@@ -954,6 +1028,7 @@ void updateRequestStatus(void)
     }
 
     printf("\nRequest status updated successfully.\n");
+    writeActivityLog("Updated emergency request status.");
     pauseScreen();
 }
 
@@ -1030,28 +1105,450 @@ void deleteRequest(void)
     }
 
     printf("\nRequest deleted successfully.\n");
+    writeActivityLog("Deleted an emergency request.");
     pauseScreen();
 }
 
-void exportDonorReport(void)
+void matchDonorsByBloodGroup(void)
 {
-    printf("\nExport Donor Report feature will be implemented later.\n");
+    FILE *donorFile;
+    Donor donor;
+    char bloodGroup[5];
+    int found = 0;
+
+    donorFile = fopen(DONOR_FILE, "rb");
+
+    if (donorFile == NULL)
+    {
+        printf("\nNo donor records found yet.\n");
+        pauseScreen();
+        return;
+    }
+
+    getTextInput("\nEnter blood group to match: ", bloodGroup, sizeof(bloodGroup));
+
+    printf("\n==============================================================\n");
+    printf("               MATCHED AVAILABLE DONORS\n");
+    printf("==============================================================\n");
+    printf("Blood Group Filter: %s\n", bloodGroup);
+    printf("Only donors with availability = 1 are shown.\n");
+    printf("--------------------------------------------------------------\n");
+    printf("%-8s %-20s %-10s %-15s %-12s\n",
+           "ID",
+           "Name",
+           "Group",
+           "Phone",
+           "Status");
+    printf("--------------------------------------------------------------\n");
+
+    while (fread(&donor, sizeof(Donor), 1, donorFile) == 1)
+    {
+        if (strcmp(donor.bloodGroup, bloodGroup) == 0 && isDonorAvailable(&donor))
+        {
+            printMatchedDonorRow(&donor);
+            found = 1;
+        }
+    }
+
+    if (!found)
+    {
+        printf("No available donors found for blood group %s.\n", bloodGroup);
+    }
+
+    printf("==============================================================\n");
+    fclose(donorFile);
+    writeActivityLog("Matched donors by blood group.");
     pauseScreen();
 }
 
-void exportRequestReport(void)
+void matchDonorsByRequestId(void)
 {
-    printf("\nExport Request Report feature will be implemented later.\n");
+    FILE *requestFile;
+    FILE *donorFile;
+    Request request;
+    Donor donor;
+    int requestId;
+    int requestFound = 0;
+    int donorFound = 0;
+
+    requestFile = fopen(REQUEST_FILE, "rb");
+
+    if (requestFile == NULL)
+    {
+        printf("\nNo request records found yet.\n");
+        pauseScreen();
+        return;
+    }
+
+    printf("\nEnter request ID to find matching donors: ");
+    while (scanf("%d", &requestId) != 1)
+    {
+        printf("Invalid input. Enter request ID again: ");
+        clearInputBuffer();
+    }
+    clearInputBuffer();
+
+    while (fread(&request, sizeof(Request), 1, requestFile) == 1)
+    {
+        if (request.requestId == requestId)
+        {
+            requestFound = 1;
+            break;
+        }
+    }
+
+    fclose(requestFile);
+
+    if (!requestFound)
+    {
+        printf("\nNo request found with ID %d.\n", requestId);
+        pauseScreen();
+        return;
+    }
+
+    donorFile = fopen(DONOR_FILE, "rb");
+
+    if (donorFile == NULL)
+    {
+        printf("\nNo donor records found yet.\n");
+        pauseScreen();
+        return;
+    }
+
+    printf("\n==============================================================\n");
+    printf("              DONOR MATCH RESULT FOR REQUEST ID %d\n", request.requestId);
+    printf("==============================================================\n");
+    printf("Patient Name       : %s\n", request.patientName);
+    printf("Blood Group Needed : %s\n", request.bloodGroupNeeded);
+    printf("Units Needed       : %d\n", request.unitsNeeded);
+    printf("Urgency Level      : %s\n", request.urgencyLevel);
+    printf("Request Status     : %s\n", request.requestStatus);
+    printf("--------------------------------------------------------------\n");
+    printf("%-8s %-20s %-10s %-15s %-12s\n",
+           "ID",
+           "Name",
+           "Group",
+           "Phone",
+           "Status");
+    printf("--------------------------------------------------------------\n");
+
+    while (fread(&donor, sizeof(Donor), 1, donorFile) == 1)
+    {
+        if (strcmp(donor.bloodGroup, request.bloodGroupNeeded) == 0 &&
+            isDonorAvailable(&donor))
+        {
+            printMatchedDonorRow(&donor);
+            donorFound = 1;
+        }
+    }
+
+    if (!donorFound)
+    {
+        printf("No available donors found for request ID %d.\n", request.requestId);
+    }
+
+    printf("==============================================================\n");
+    fclose(donorFile);
+    writeActivityLog("Matched donors by request ID.");
+    pauseScreen();
+}
+
+void showDonorSummary(void)
+{
+    FILE *file;
+    Donor donor;
+    int totalDonors = 0;
+    int availableDonors = 0;
+    int unavailableDonors = 0;
+
+    file = fopen(DONOR_FILE, "rb");
+
+    if (file == NULL)
+    {
+        printf("\nNo donor records found yet.\n");
+        pauseScreen();
+        return;
+    }
+
+    while (fread(&donor, sizeof(Donor), 1, file) == 1)
+    {
+        totalDonors++;
+
+        if (isDonorAvailable(&donor))
+        {
+            availableDonors++;
+        }
+        else
+        {
+            unavailableDonors++;
+        }
+    }
+
+    fclose(file);
+
+    printf("\n=================================================\n");
+    printf("               DONOR SUMMARY REPORT\n");
+    printf("=================================================\n");
+    printf("Total Donors         : %d\n", totalDonors);
+    printf("Available Donors     : %d\n", availableDonors);
+    printf("Unavailable Donors   : %d\n", unavailableDonors);
+    printf("=================================================\n");
+
+    writeActivityLog("Viewed donor summary report.");
+    pauseScreen();
+}
+
+void showRequestSummary(void)
+{
+    FILE *file;
+    Request request;
+    int totalRequests = 0;
+    int pendingRequests = 0;
+    int fulfilledRequests = 0;
+    int otherRequests = 0;
+
+    file = fopen(REQUEST_FILE, "rb");
+
+    if (file == NULL)
+    {
+        printf("\nNo request records found yet.\n");
+        pauseScreen();
+        return;
+    }
+
+    while (fread(&request, sizeof(Request), 1, file) == 1)
+    {
+        totalRequests++;
+
+        if (strcmp(request.requestStatus, "Pending") == 0 ||
+            strcmp(request.requestStatus, "pending") == 0)
+        {
+            pendingRequests++;
+        }
+        else if (strcmp(request.requestStatus, "Fulfilled") == 0 ||
+                 strcmp(request.requestStatus, "fulfilled") == 0)
+        {
+            fulfilledRequests++;
+        }
+        else
+        {
+            otherRequests++;
+        }
+    }
+
+    fclose(file);
+
+    printf("\n=================================================\n");
+    printf("              REQUEST SUMMARY REPORT\n");
+    printf("=================================================\n");
+    printf("Total Requests       : %d\n", totalRequests);
+    printf("Pending Requests     : %d\n", pendingRequests);
+    printf("Fulfilled Requests   : %d\n", fulfilledRequests);
+    printf("Other Status         : %d\n", otherRequests);
+    printf("=================================================\n");
+
+    writeActivityLog("Viewed request summary report.");
+    pauseScreen();
+}
+
+void exportDonorReportToTXT(void)
+{
+    FILE *dataFile;
+    FILE *reportFile;
+    Donor donor;
+    int totalDonors = 0;
+    int availableDonors = 0;
+    int unavailableDonors = 0;
+    char dateTime[30];
+
+    dataFile = fopen(DONOR_FILE, "rb");
+
+    if (dataFile == NULL)
+    {
+        printf("\nNo donor records found yet.\n");
+        pauseScreen();
+        return;
+    }
+
+    reportFile = fopen(DONOR_REPORT_FILE, "w");
+
+    if (reportFile == NULL)
+    {
+        fclose(dataFile);
+        printf("\nUnable to create donor report file.\n");
+        pauseScreen();
+        return;
+    }
+
+    getCurrentDateTime(dateTime, sizeof(dateTime));
+
+    fprintf(reportFile, "NSU Blood Donor Management System\n");
+    fprintf(reportFile, "Donor Report\n");
+    fprintf(reportFile, "Generated On: %s\n", dateTime);
+    fprintf(reportFile, "============================================================\n\n");
+
+    while (fread(&donor, sizeof(Donor), 1, dataFile) == 1)
+    {
+        totalDonors++;
+
+        if (isDonorAvailable(&donor))
+        {
+            availableDonors++;
+        }
+        else
+        {
+            unavailableDonors++;
+        }
+
+        fprintf(reportFile, "Donor ID           : %d\n", donor.donorId);
+        fprintf(reportFile, "Name               : %s\n", donor.name);
+        fprintf(reportFile, "Age                : %d\n", donor.age);
+        fprintf(reportFile, "Gender             : %s\n", donor.gender);
+        fprintf(reportFile, "Blood Group        : %s\n", donor.bloodGroup);
+        fprintf(reportFile, "Phone              : %s\n", donor.phone);
+        fprintf(reportFile, "Address            : %s\n", donor.address);
+        fprintf(reportFile, "Last Donation Date : %s\n", donor.lastDonationDate);
+        fprintf(reportFile, "Availability       : %s\n",
+                isDonorAvailable(&donor) ? "Available" : "Unavailable");
+        fprintf(reportFile, "------------------------------------------------------------\n");
+    }
+
+    fprintf(reportFile, "\nSummary\n");
+    fprintf(reportFile, "Total Donors       : %d\n", totalDonors);
+    fprintf(reportFile, "Available Donors   : %d\n", availableDonors);
+    fprintf(reportFile, "Unavailable Donors : %d\n", unavailableDonors);
+
+    fclose(dataFile);
+    fclose(reportFile);
+
+    printf("\nDonor report exported successfully to %s\n", DONOR_REPORT_FILE);
+    writeActivityLog("Exported donor report to TXT.");
+    pauseScreen();
+}
+
+void exportRequestReportToTXT(void)
+{
+    FILE *dataFile;
+    FILE *reportFile;
+    Request request;
+    int totalRequests = 0;
+    int pendingRequests = 0;
+    int fulfilledRequests = 0;
+    int otherRequests = 0;
+    char dateTime[30];
+
+    dataFile = fopen(REQUEST_FILE, "rb");
+
+    if (dataFile == NULL)
+    {
+        printf("\nNo request records found yet.\n");
+        pauseScreen();
+        return;
+    }
+
+    reportFile = fopen(REQUEST_REPORT_FILE, "w");
+
+    if (reportFile == NULL)
+    {
+        fclose(dataFile);
+        printf("\nUnable to create request report file.\n");
+        pauseScreen();
+        return;
+    }
+
+    getCurrentDateTime(dateTime, sizeof(dateTime));
+
+    fprintf(reportFile, "NSU Blood Donor Management System\n");
+    fprintf(reportFile, "Emergency Request Report\n");
+    fprintf(reportFile, "Generated On: %s\n", dateTime);
+    fprintf(reportFile, "============================================================\n\n");
+
+    while (fread(&request, sizeof(Request), 1, dataFile) == 1)
+    {
+        totalRequests++;
+
+        if (strcmp(request.requestStatus, "Pending") == 0 ||
+            strcmp(request.requestStatus, "pending") == 0)
+        {
+            pendingRequests++;
+        }
+        else if (strcmp(request.requestStatus, "Fulfilled") == 0 ||
+                 strcmp(request.requestStatus, "fulfilled") == 0)
+        {
+            fulfilledRequests++;
+        }
+        else
+        {
+            otherRequests++;
+        }
+
+        fprintf(reportFile, "Request ID         : %d\n", request.requestId);
+        fprintf(reportFile, "Patient Name       : %s\n", request.patientName);
+        fprintf(reportFile, "Blood Group Needed : %s\n", request.bloodGroupNeeded);
+        fprintf(reportFile, "Units Needed       : %d\n", request.unitsNeeded);
+        fprintf(reportFile, "Hospital Name      : %s\n", request.hospitalName);
+        fprintf(reportFile, "Location           : %s\n", request.location);
+        fprintf(reportFile, "Contact Number     : %s\n", request.contactNumber);
+        fprintf(reportFile, "Urgency Level      : %s\n", request.urgencyLevel);
+        fprintf(reportFile, "Request Status     : %s\n", request.requestStatus);
+        fprintf(reportFile, "------------------------------------------------------------\n");
+    }
+
+    fprintf(reportFile, "\nSummary\n");
+    fprintf(reportFile, "Total Requests     : %d\n", totalRequests);
+    fprintf(reportFile, "Pending Requests   : %d\n", pendingRequests);
+    fprintf(reportFile, "Fulfilled Requests : %d\n", fulfilledRequests);
+    fprintf(reportFile, "Other Status       : %d\n", otherRequests);
+
+    fclose(dataFile);
+    fclose(reportFile);
+
+    printf("\nRequest report exported successfully to %s\n", REQUEST_REPORT_FILE);
+    writeActivityLog("Exported request report to TXT.");
     pauseScreen();
 }
 
 void viewActivityLog(void)
 {
-    printf("\nView Activity Log feature will be implemented later.\n");
+    FILE *logFile;
+    char line[200];
+
+    logFile = fopen(ACTIVITY_LOG_FILE, "r");
+
+    if (logFile == NULL)
+    {
+        printf("\nNo activity log found yet.\n");
+        pauseScreen();
+        return;
+    }
+
+    printf("\n============================================================\n");
+    printf("                     ACTIVITY LOG\n");
+    printf("============================================================\n");
+
+    while (fgets(line, sizeof(line), logFile) != NULL)
+    {
+        printf("%s", line);
+    }
+
+    printf("============================================================\n");
+    fclose(logFile);
     pauseScreen();
 }
 
 void writeActivityLog(const char *action)
 {
-    printf("\nwriteActivityLog(\"%s\") will be implemented later.\n", action);
+    FILE *logFile;
+    char dateTime[30];
+
+    logFile = fopen(ACTIVITY_LOG_FILE, "a");
+
+    if (logFile == NULL)
+    {
+        return;
+    }
+
+    getCurrentDateTime(dateTime, sizeof(dateTime));
+    fprintf(logFile, "[%s] %s\n", dateTime, action);
+    fclose(logFile);
 }
