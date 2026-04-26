@@ -227,6 +227,7 @@ void showAdminMenu(void)
     printf("  2. Emergency Request Management\n");
     printf("  3. Reports and Activity Log\n");
     printf("  4. Change Admin Password\n");
+    printf("  5. Assign Donor to Request\n");
     printf("  0. Logout\n");
     printLine('=', 63);
 }
@@ -306,6 +307,9 @@ void adminMenu(int adminId)
             break;
         case 4:
             changeAdminPassword(adminId);
+            break;
+        case 5:
+            assignDonorToRequest();
             break;
         case 0:
             return;
