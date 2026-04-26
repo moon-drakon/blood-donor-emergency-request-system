@@ -39,6 +39,7 @@ typedef struct
 typedef struct
 {
     int requestId;
+    char requesterName[50];
     char patientName[50];
     char bloodGroupNeeded[5];
     int unitsNeeded;
@@ -141,6 +142,7 @@ void showDonorSummary(void);
 void showRequestSummary(void);
 void exportDonorReportToTXT(void);
 void exportRequestReportToTXT(void);
+void exportDonationReport(void);
 void exportDonationReportToTXT(void);
 void viewDonationRecords(void);
 void searchDonationHistoryByDonorId(void);
@@ -435,7 +437,7 @@ void reportMenu(void)
             exportRequestReportToTXT();
             break;
         case 5:
-            exportDonationReportToTXT();
+            exportDonationReport();
             break;
         case 6:
             viewDonationRecords();
@@ -1523,6 +1525,7 @@ void displayRequest(const Request *request)
 {
     printLine('-', 57);
     printf("%-20s : %d\n", "Request ID", request->requestId);
+    printf("%-20s : %s\n", "Requester Name", request->requesterName);
     printf("%-20s : %s\n", "Patient Name", request->patientName);
     printf("%-20s : %s\n", "Blood Group Needed", request->bloodGroupNeeded);
     printf("%-20s : %d\n", "Units Needed", request->unitsNeeded);
@@ -1970,6 +1973,7 @@ void addRequest(void)
     printSectionHeader("Add Emergency Request");
     printf("Assigned Request ID : %d\n", request.requestId);
 
+    getTextInput("Enter requester name: ", request.requesterName, sizeof(request.requesterName));
     getTextInput("Enter patient name: ", request.patientName, sizeof(request.patientName));
     getTextInput("Enter blood group needed: ",
                  request.bloodGroupNeeded,
@@ -3577,15 +3581,25 @@ void exportRequestReportToTXT(void)
     pauseScreen();
 }
 
-void exportDonationReportToTXT(void)
+void exportDonationReport(void)
 {
     FILE *dataFile;
     FILE *reportFile;
+    FILE *donorFile;
+    FILE *requestFile;
     DonationRecord record;
+    Donor donor;
+    Request request;
     int totalRecords = 0;
     int requesterConfirmed = 0;
     int adminVerified = 0;
+    int donorFound;
+    int requestFound;
     char dateTime[30];
+    char donorName[50];
+    char requesterName[50];
+    char patientName[50];
+    char finalStatus[50];
 
     dataFile = fopen(DONATION_FILE, "rb");
 
@@ -3616,6 +3630,12 @@ void exportDonationReportToTXT(void)
     while (fread(&record, sizeof(DonationRecord), 1, dataFile) == 1)
     {
         totalRecords++;
+        donorFound = 0;
+        requestFound = 0;
+        strcpy(donorName, "Not Found");
+        strcpy(requesterName, "Not Found");
+        strcpy(patientName, "Not Found");
+        strcpy(finalStatus, "Unknown");
 
         if (record.requesterConfirmed)
         {
@@ -3627,14 +3647,64 @@ void exportDonationReportToTXT(void)
             adminVerified++;
         }
 
-        fprintf(reportFile, "Donation ID         : %d\n", record.donationId);
-        fprintf(reportFile, "Request ID          : %d\n", record.requestId);
-        fprintf(reportFile, "Donor ID            : %d\n", record.donorId);
-        fprintf(reportFile, "Blood Group         : %s\n", record.bloodGroup);
-        fprintf(reportFile, "Units Donated       : %d\n", record.unitsDonated);
-        fprintf(reportFile, "Donation Date       : %s\n", record.donationDate);
-        fprintf(reportFile, "Requester Confirmed : %s\n", record.requesterConfirmed ? "Yes" : "No");
-        fprintf(reportFile, "Admin Verified      : %s\n", record.adminVerified ? "Yes" : "No");
+        donorFile = fopen(DONOR_FILE, "rb");
+
+        if (donorFile != NULL)
+        {
+            while (fread(&donor, sizeof(Donor), 1, donorFile) == 1)
+            {
+                if (donor.donorId == record.donorId)
+                {
+                    strcpy(donorName, donor.name);
+                    donorFound = 1;
+                    break;
+                }
+            }
+
+            fclose(donorFile);
+        }
+
+        requestFile = fopen(REQUEST_FILE, "rb");
+
+        if (requestFile != NULL)
+        {
+            while (fread(&request, sizeof(Request), 1, requestFile) == 1)
+            {
+                if (request.requestId == record.requestId)
+                {
+                    strcpy(requesterName, request.requesterName);
+                    strcpy(patientName, request.patientName);
+                    strcpy(finalStatus, getRequestStatusText(request.requestStatus));
+                    requestFound = 1;
+                    break;
+                }
+            }
+
+            fclose(requestFile);
+        }
+
+        if (donorFound == 0)
+        {
+            strcpy(donorName, "Unknown Donor");
+        }
+
+        if (requestFound == 0)
+        {
+            strcpy(requesterName, "Unknown Requester");
+            strcpy(patientName, "Unknown Patient");
+        }
+
+        fprintf(reportFile, "Donation ID            : %d\n", record.donationId);
+        fprintf(reportFile, "Request ID             : %d\n", record.requestId);
+        fprintf(reportFile, "Donor ID               : %d\n", record.donorId);
+        fprintf(reportFile, "Donor Name             : %s\n", donorName);
+        fprintf(reportFile, "Requester Name         : %s\n", requesterName);
+        fprintf(reportFile, "Patient Name           : %s\n", patientName);
+        fprintf(reportFile, "Blood Group            : %s\n", record.bloodGroup);
+        fprintf(reportFile, "Donation Date          : %s\n", record.donationDate);
+        fprintf(reportFile, "Requester Confirmation : %s\n", record.requesterConfirmed ? "Yes" : "No");
+        fprintf(reportFile, "Admin Verification     : %s\n", record.adminVerified ? "Yes" : "No");
+        fprintf(reportFile, "Final Status           : %s\n", finalStatus);
         fprintf(reportFile, "------------------------------------------------------------\n");
     }
 
@@ -3649,6 +3719,11 @@ void exportDonationReportToTXT(void)
     printf("\n[SUCCESS] Donation report exported to %s\n", DONATION_REPORT_FILE);
     writeActivityLog("Exported donation report to TXT.");
     pauseScreen();
+}
+
+void exportDonationReportToTXT(void)
+{
+    exportDonationReport();
 }
 
 void viewActivityLog(void)
