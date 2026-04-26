@@ -135,7 +135,7 @@ void matchDonorsByRequestId(void);
 void trackRequestByIdAndPin(void);
 void assignDonorToRequest(void);
 void requesterConfirmDonation(void);
-void adminVerifyDonation(void);
+void verifyDonationCompletion(void);
 
 void showDonorSummary(void);
 void showRequestSummary(void);
@@ -394,7 +394,7 @@ void requestMenu(void)
             assignDonorToRequest();
             break;
         case 9:
-            adminVerifyDonation();
+            verifyDonationCompletion();
             break;
         case 0:
             return;
@@ -692,7 +692,6 @@ void confirmRequesterDonationByCredentials(int requestId, const char *trackingPI
     FILE *sourceFile;
     FILE *tempFile;
     Request request;
-    Request confirmedRequest;
     int requestFound = 0;
     int confirmed = 0;
 
@@ -726,7 +725,6 @@ void confirmRequesterDonationByCredentials(int requestId, const char *trackingPI
             {
                 request.requesterConfirmed = 1;
                 request.requestStatus = REQUEST_WAITING_VERIFICATION;
-                confirmedRequest = request;
                 confirmed = 1;
             }
             else
@@ -771,7 +769,6 @@ void confirmRequesterDonationByCredentials(int requestId, const char *trackingPI
         return;
     }
 
-    createDonationRecord(&confirmedRequest);
     printStatusMessage("SUCCESS", "Donation completion submitted for admin verification.");
     writeActivityLog("Requester confirmed donation completion.");
     pauseScreen();
@@ -2674,7 +2671,7 @@ void createDonationRecord(const Request *request)
     strncpy(record.donationDate, dateTime, sizeof(record.donationDate) - 1);
     record.donationDate[sizeof(record.donationDate) - 1] = '\0';
     record.requesterConfirmed = 1;
-    record.adminVerified = 0;
+    record.adminVerified = 1;
 
     fwrite(&record, sizeof(DonationRecord), 1, file);
     fclose(file);
@@ -2685,7 +2682,6 @@ void requesterConfirmDonation(void)
     FILE *sourceFile;
     FILE *tempFile;
     Request request;
-    Request confirmedRequest;
     int requestId;
     char pin[10];
     int requestFound = 0;
@@ -2736,7 +2732,6 @@ void requesterConfirmDonation(void)
                 {
                     request.requestStatus = REQUEST_WAITING_VERIFICATION;
                     request.requesterConfirmed = 1;
-                    confirmedRequest = request;
                     confirmed = 1;
                 }
                 else
@@ -2790,7 +2785,6 @@ void requesterConfirmDonation(void)
         return;
     }
 
-    createDonationRecord(&confirmedRequest);
     printStatusMessage("SUCCESS", "Donation confirmation submitted for admin verification.");
     writeActivityLog("Requester confirmed donation completion.");
     pauseScreen();
@@ -2828,21 +2822,18 @@ void viewDonationRecords(void)
     pauseScreen();
 }
 
-void adminVerifyDonation(void)
+void verifyDonationCompletion(void)
 {
     FILE *requestFile;
     FILE *tempRequestFile;
-    FILE *donationFile;
-    FILE *tempDonationFile;
     FILE *donorFile;
     FILE *tempDonorFile;
     Request request;
-    DonationRecord record;
+    Request verifiedRequest;
     Donor donor;
     int requestId;
     int requestFound = 0;
-    int validRequest = 0;
-    int donationUpdated = 0;
+    int donorFound = 0;
     int donorUpdated = 0;
     int donorId = 0;
     char dateTime[30];
@@ -2870,14 +2861,8 @@ void adminVerifyDonation(void)
         if (request.requestId == requestId)
         {
             requestFound = 1;
+            verifiedRequest = request;
             donorId = request.assignedDonorId;
-
-            if (request.requestStatus == REQUEST_WAITING_VERIFICATION &&
-                donationRecordExistsForRequest(requestId))
-            {
-                validRequest = 1;
-            }
-
             break;
         }
     }
@@ -2891,65 +2876,57 @@ void adminVerifyDonation(void)
         return;
     }
 
-    if (!validRequest)
+    if (verifiedRequest.requestStatus == REQUEST_FULFILLED)
     {
-        printStatusMessage("ERROR", "Request must be waiting for verification and have a donation record.");
+        printStatusMessage("ERROR", "This request is already verified. Donation count was not changed.");
         pauseScreen();
         return;
     }
 
-    donationFile = fopen(DONATION_FILE, "rb");
-    tempDonationFile = fopen(TEMP_DONATION_FILE, "wb");
-
-    if (donationFile == NULL || tempDonationFile == NULL)
+    if (verifiedRequest.requestStatus != REQUEST_WAITING_VERIFICATION)
     {
-        if (donationFile != NULL)
-        {
-            fclose(donationFile);
-        }
-        if (tempDonationFile != NULL)
-        {
-            fclose(tempDonationFile);
-        }
-
-        printStatusMessage("ERROR", "Unable to open donation files.");
+        printStatusMessage("ERROR", "Request must be waiting for verification.");
         pauseScreen();
         return;
     }
 
-    while (fread(&record, sizeof(DonationRecord), 1, donationFile) == 1)
+    if (verifiedRequest.requesterConfirmed != 1)
     {
-        if (record.requestId == requestId)
-        {
-            record.adminVerified = 1;
-            donationUpdated = 1;
-        }
-
-        if (fwrite(&record, sizeof(DonationRecord), 1, tempDonationFile) != 1)
-        {
-            fclose(donationFile);
-            fclose(tempDonationFile);
-            remove(TEMP_DONATION_FILE);
-            printStatusMessage("ERROR", "Failed to update donation record.");
-            pauseScreen();
-            return;
-        }
-    }
-
-    fclose(donationFile);
-    fclose(tempDonationFile);
-
-    if (!donationUpdated)
-    {
-        remove(TEMP_DONATION_FILE);
-        printStatusMessage("ERROR", "Matching donation record was not found.");
+        printStatusMessage("ERROR", "Requester confirmation is required before admin verification.");
         pauseScreen();
         return;
     }
 
-    if (remove(DONATION_FILE) != 0 || rename(TEMP_DONATION_FILE, DONATION_FILE) != 0)
+    if (verifiedRequest.assignedDonorId == 0)
     {
-        printStatusMessage("ERROR", "Failed to replace donation file after verification.");
+        printStatusMessage("ERROR", "No donor is assigned to this request.");
+        pauseScreen();
+        return;
+    }
+
+    donorFile = fopen(DONOR_FILE, "rb");
+
+    if (donorFile == NULL)
+    {
+        printStatusMessage("INFO", "No donor records found yet.");
+        pauseScreen();
+        return;
+    }
+
+    while (fread(&donor, sizeof(Donor), 1, donorFile) == 1)
+    {
+        if (donor.donorId == donorId)
+        {
+            donorFound = 1;
+            break;
+        }
+    }
+
+    fclose(donorFile);
+
+    if (!donorFound)
+    {
+        printStatusMessage("ERROR", "Assigned donor record was not found.");
         pauseScreen();
         return;
     }
@@ -2977,8 +2954,9 @@ void adminVerifyDonation(void)
     {
         if (request.requestId == requestId)
         {
-            request.requestStatus = REQUEST_FULFILLED;
             request.adminVerified = 1;
+            request.requestStatus = REQUEST_FULFILLED;
+            verifiedRequest = request;
         }
 
         if (fwrite(&request, sizeof(Request), 1, tempRequestFile) != 1)
@@ -3005,50 +2983,7 @@ void adminVerifyDonation(void)
     donorFile = fopen(DONOR_FILE, "rb");
     tempDonorFile = fopen(TEMP_DONOR_FILE, "wb");
 
-    if (donorFile != NULL && tempDonorFile != NULL)
-    {
-        getCurrentDateTime(dateTime, sizeof(dateTime));
-
-        while (fread(&donor, sizeof(Donor), 1, donorFile) == 1)
-        {
-            if (donor.donorId == donorId)
-            {
-                strcpy(donor.availabilityStatus, "0");
-                strncpy(donor.lastDonationDate, dateTime, sizeof(donor.lastDonationDate) - 1);
-                donor.lastDonationDate[sizeof(donor.lastDonationDate) - 1] = '\0';
-                donor.donationCount++;
-                donorUpdated = 1;
-            }
-
-            if (fwrite(&donor, sizeof(Donor), 1, tempDonorFile) != 1)
-            {
-                fclose(donorFile);
-                fclose(tempDonorFile);
-                remove(TEMP_DONOR_FILE);
-                printStatusMessage("ERROR", "Failed to update donor after verification.");
-                pauseScreen();
-                return;
-            }
-        }
-
-        fclose(donorFile);
-        fclose(tempDonorFile);
-
-        if (donorUpdated)
-        {
-            if (remove(DONOR_FILE) != 0 || rename(TEMP_DONOR_FILE, DONOR_FILE) != 0)
-            {
-                printStatusMessage("ERROR", "Failed to replace donor file after verification.");
-                pauseScreen();
-                return;
-            }
-        }
-        else
-        {
-            remove(TEMP_DONOR_FILE);
-        }
-    }
-    else
+    if (donorFile == NULL || tempDonorFile == NULL)
     {
         if (donorFile != NULL)
         {
@@ -3058,8 +2993,55 @@ void adminVerifyDonation(void)
         {
             fclose(tempDonorFile);
         }
+
+        printStatusMessage("ERROR", "Unable to open donor files.");
+        pauseScreen();
+        return;
     }
 
+    getCurrentDateTime(dateTime, sizeof(dateTime));
+
+    while (fread(&donor, sizeof(Donor), 1, donorFile) == 1)
+    {
+        if (donor.donorId == donorId)
+        {
+            strcpy(donor.availabilityStatus, "0");
+            strncpy(donor.lastDonationDate, dateTime, sizeof(donor.lastDonationDate) - 1);
+            donor.lastDonationDate[sizeof(donor.lastDonationDate) - 1] = '\0';
+            donor.donationCount++;
+            donorUpdated = 1;
+        }
+
+        if (fwrite(&donor, sizeof(Donor), 1, tempDonorFile) != 1)
+        {
+            fclose(donorFile);
+            fclose(tempDonorFile);
+            remove(TEMP_DONOR_FILE);
+            printStatusMessage("ERROR", "Failed to update donor after verification.");
+            pauseScreen();
+            return;
+        }
+    }
+
+    fclose(donorFile);
+    fclose(tempDonorFile);
+
+    if (!donorUpdated)
+    {
+        remove(TEMP_DONOR_FILE);
+        printStatusMessage("ERROR", "Assigned donor record was not found during update.");
+        pauseScreen();
+        return;
+    }
+
+    if (remove(DONOR_FILE) != 0 || rename(TEMP_DONOR_FILE, DONOR_FILE) != 0)
+    {
+        printStatusMessage("ERROR", "Failed to replace donor file after verification.");
+        pauseScreen();
+        return;
+    }
+
+    createDonationRecord(&verifiedRequest);
     printStatusMessage("SUCCESS", "Donation verified and request fulfilled.");
     writeActivityLog("Admin verified donation and fulfilled request.");
     pauseScreen();
