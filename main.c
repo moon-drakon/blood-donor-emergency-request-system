@@ -21,6 +21,11 @@
 #define REQUEST_WAITING_VERIFICATION 2
 #define REQUEST_FULFILLED 3
 
+#define DONOR_PENDING_APPROVAL 0
+#define DONOR_APPROVED 1
+#define DONOR_REJECTED 2
+#define DONOR_BLOCKED 3
+
 typedef struct
 {
     int donorId;
@@ -34,6 +39,7 @@ typedef struct
     char availabilityStatus[20];
     char password[30];
     int donationCount;
+    int approvalStatus;
 } Donor;
 
 typedef struct
@@ -102,10 +108,13 @@ int generateNextDonorId(void);
 int generateNextRequestId(void);
 int generateNextDonationId(void);
 int isDonorAvailable(const Donor *donor);
+int isDonorApproved(const Donor *donor);
+int isDonorEligibleForAssignment(const Donor *donor);
 void printMatchedDonorRow(const Donor *donor);
 void getCurrentDateTime(char *buffer, int size);
 const char *getRequestStatusText(int status);
 const char *getAvailabilityText(const Donor *donor);
+const char *getDonorApprovalStatusText(int status);
 void generateRequestPin(char *pin, int size);
 void displayDonor(const Donor *donor);
 void displayRequest(const Request *request);
@@ -115,6 +124,7 @@ void initializeDefaultAdmin(void);
 int adminLogin(void);
 void changeAdminPassword(int adminId);
 int donorLogin(void);
+void donorSelfRegistration(void);
 void viewOwnDonorProfile(int donorId);
 void changeOwnDonorAvailability(int donorId);
 void changeDonorPassword(int donorId);
@@ -125,6 +135,8 @@ void searchDonorById(void);
 void updateDonor(void);
 void deleteDonor(void);
 void changeDonorAvailability(void);
+void viewPendingDonorRegistrations(void);
+void approveOrRejectDonorRegistration(void);
 
 void addRequest(void);
 void viewAllRequests(void);
@@ -187,12 +199,15 @@ int main(void)
             }
             break;
         case 3:
-            requesterAccess();
+            donorSelfRegistration();
             break;
         case 4:
-            guestMenu();
+            requesterAccess();
             break;
         case 5:
+            guestMenu();
+            break;
+        case 6:
             printStatusMessage("SUCCESS", "Thank you for using the system.");
             printf("Program closed successfully.\n");
             return 0;
@@ -209,9 +224,10 @@ void showAccessMenu(void)
     printSectionHeader("NSU Blood Donor System - Access Menu");
     printf("  1. Administrator Login\n");
     printf("  2. Donor Login\n");
-    printf("  3. Request Tracking / Requester Access\n");
-    printf("  4. Guest Access\n");
-    printf("  5. Exit\n");
+    printf("  3. Donor Self Registration\n");
+    printf("  4. Request Tracking / Requester Access\n");
+    printf("  5. Guest Access\n");
+    printf("  6. Exit\n");
     printLine('=', 72);
 }
 
@@ -248,6 +264,8 @@ void showDonorMenu(void)
     printf("  4. Update Donor\n");
     printf("  5. Delete Donor\n");
     printf("  6. Change Donor Availability\n");
+    printf("  7. View Pending Donor Registrations\n");
+    printf("  8. Approve or Reject Donor Registration\n");
     printf("  0. Back to Main Menu\n");
     printLine('-', 72);
 }
@@ -357,6 +375,12 @@ void adminDonorMenu(void)
             break;
         case 6:
             changeDonorAvailability();
+            break;
+        case 7:
+            viewPendingDonorRegistrations();
+            break;
+        case 8:
+            approveOrRejectDonorRegistration();
             break;
         case 0:
             return;
@@ -987,6 +1011,8 @@ int donorLogin(void)
     Donor donor;
     int inputId;
     char inputPassword[30];
+    int accountFound = 0;
+    int passwordMatched = 0;
     int loginSuccess = 0;
 
     printSectionHeader("Donor Login");
@@ -1012,9 +1038,20 @@ int donorLogin(void)
 
     while (fread(&donor, sizeof(Donor), 1, file) == 1)
     {
-        if (donor.donorId == inputId && strcmp(donor.password, inputPassword) == 0)
+        if (donor.donorId == inputId)
         {
-            loginSuccess = 1;
+            accountFound = 1;
+
+            if (strcmp(donor.password, inputPassword) == 0)
+            {
+                passwordMatched = 1;
+
+                if (isDonorApproved(&donor))
+                {
+                    loginSuccess = 1;
+                }
+            }
+
             break;
         }
     }
@@ -1030,10 +1067,104 @@ int donorLogin(void)
         return inputId;
     }
 
+    if (accountFound && passwordMatched)
+    {
+        printf("\nAccount Status : %s\n", getDonorApprovalStatusText(donor.approvalStatus));
+
+        if (donor.approvalStatus == DONOR_PENDING_APPROVAL)
+        {
+            printStatusMessage("INFO", "Your donor account is pending admin approval.");
+        }
+        else if (donor.approvalStatus == DONOR_REJECTED)
+        {
+            printStatusMessage("ERROR", "Your donor registration was rejected. Please contact admin.");
+        }
+        else if (donor.approvalStatus == DONOR_BLOCKED)
+        {
+            printStatusMessage("ERROR", "Your donor account is blocked. Please contact admin.");
+        }
+        else
+        {
+            printStatusMessage("ERROR", "Your donor account is not approved for login.");
+        }
+
+        writeActivityLog("Donor login blocked due to account status.");
+        pauseScreen();
+        return 0;
+    }
+
     printStatusMessage("ERROR", "Invalid Donor ID or password. Returning to access menu.");
     writeActivityLog("Failed donor login attempt.");
     pauseScreen();
     return 0;
+}
+
+void donorSelfRegistration(void)
+{
+    FILE *file;
+    Donor donor;
+
+    memset(&donor, 0, sizeof(Donor));
+    donor.donorId = generateNextDonorId();
+
+    file = fopen(DONOR_FILE, "ab");
+
+    if (file == NULL)
+    {
+        printStatusMessage("ERROR", "Unable to open donor file.");
+        pauseScreen();
+        return;
+    }
+
+    printSectionHeader("Donor Self Registration");
+    printf("Your generated Donor ID : %d\n", donor.donorId);
+
+    getTextInput("Enter donor name: ", donor.name, sizeof(donor.name));
+
+    printf("Enter age: ");
+    while (scanf("%d", &donor.age) != 1)
+    {
+        printf("Invalid input. Enter age again: ");
+        clearInputBuffer();
+    }
+    clearInputBuffer();
+
+    getTextInput("Enter gender: ", donor.gender, sizeof(donor.gender));
+    getTextInput("Enter blood group: ", donor.bloodGroup, sizeof(donor.bloodGroup));
+    getTextInput("Enter phone number: ", donor.phone, sizeof(donor.phone));
+    getTextInput("Enter address: ", donor.address, sizeof(donor.address));
+    getTextInput("Enter last donation date: ", donor.lastDonationDate, sizeof(donor.lastDonationDate));
+    strcpy(donor.availabilityStatus, "1");
+
+    do
+    {
+        getTextInput("Create donor password: ", donor.password, sizeof(donor.password));
+
+        if (strlen(donor.password) == 0)
+        {
+            printStatusMessage("ERROR", "Password cannot be empty.");
+        }
+    } while (strlen(donor.password) == 0);
+
+    donor.donationCount = 0;
+    donor.approvalStatus = DONOR_PENDING_APPROVAL;
+
+    if (fwrite(&donor, sizeof(Donor), 1, file) != 1)
+    {
+        fclose(file);
+        printStatusMessage("ERROR", "Failed to save donor registration.");
+        pauseScreen();
+        return;
+    }
+
+    fclose(file);
+
+    printStatusMessage("SUCCESS", "Registration submitted successfully.");
+    printf("Save your Donor ID. You can login after admin approval.\n");
+    printf("%-24s : %d\n", "Donor ID", donor.donorId);
+    printf("%-24s : %s\n", "Account Status", getDonorApprovalStatusText(donor.approvalStatus));
+    writeActivityLog("New donor self-registration submitted.");
+    pauseScreen();
 }
 
 void donorMenu(int donorId)
@@ -1395,6 +1526,23 @@ const char *getAvailabilityText(const Donor *donor)
     return isDonorAvailable(donor) ? "Available" : "Unavailable";
 }
 
+const char *getDonorApprovalStatusText(int status)
+{
+    switch (status)
+    {
+    case DONOR_PENDING_APPROVAL:
+        return "Pending Approval";
+    case DONOR_APPROVED:
+        return "Approved";
+    case DONOR_REJECTED:
+        return "Rejected";
+    case DONOR_BLOCKED:
+        return "Blocked";
+    default:
+        return "Unknown";
+    }
+}
+
 void generateRequestPin(char *pin, int size)
 {
     int value;
@@ -1496,6 +1644,16 @@ int isDonorAvailable(const Donor *donor)
     return 0;
 }
 
+int isDonorApproved(const Donor *donor)
+{
+    return donor->approvalStatus == DONOR_APPROVED;
+}
+
+int isDonorEligibleForAssignment(const Donor *donor)
+{
+    return isDonorApproved(donor) && isDonorAvailable(donor);
+}
+
 void printMatchedDonorRow(const Donor *donor)
 {
     printf("%-8d %-20s %-10s %-15s %-12s\n",
@@ -1518,6 +1676,7 @@ void displayDonor(const Donor *donor)
     printf("%-24s : %s\n", "Address", donor->address);
     printf("%-24s : %s\n", "Last Donation Date", donor->lastDonationDate);
     printf("%-24s : %s\n", "Availability", getAvailabilityText(donor));
+    printf("%-24s : %s\n", "Account Status", getDonorApprovalStatusText(donor->approvalStatus));
     printf("%-24s : %d\n", "Donation Count", donor->donationCount);
     printLine('-', 72);
 }
@@ -1605,6 +1764,7 @@ void addDonor(void)
     } while (strlen(donor.password) == 0);
 
     donor.donationCount = 0;
+    donor.approvalStatus = DONOR_APPROVED;
 
     /* Save the whole donor record in binary format. */
     if (fwrite(&donor, sizeof(Donor), 1, file) != 1)
@@ -1953,6 +2113,159 @@ void changeDonorAvailability(void)
 
     printStatusMessage("SUCCESS", "Donor availability updated successfully.");
     writeActivityLog("Changed donor availability status.");
+    pauseScreen();
+}
+
+void viewPendingDonorRegistrations(void)
+{
+    FILE *file;
+    Donor donor;
+    int found = 0;
+
+    file = fopen(DONOR_FILE, "rb");
+
+    if (file == NULL)
+    {
+        printStatusMessage("INFO", "No donor records found yet.");
+        pauseScreen();
+        return;
+    }
+
+    printSectionHeader("Pending Donor Registrations");
+
+    while (fread(&donor, sizeof(Donor), 1, file) == 1)
+    {
+        if (donor.approvalStatus == DONOR_PENDING_APPROVAL)
+        {
+            displayDonor(&donor);
+            found = 1;
+        }
+    }
+
+    fclose(file);
+
+    if (!found)
+    {
+        printStatusMessage("INFO", "No pending donor registrations found.");
+    }
+
+    pauseScreen();
+}
+
+void approveOrRejectDonorRegistration(void)
+{
+    FILE *sourceFile;
+    FILE *tempFile;
+    Donor donor;
+    int donorId;
+    int choice;
+    int found = 0;
+    int updated = 0;
+
+    sourceFile = fopen(DONOR_FILE, "rb");
+
+    if (sourceFile == NULL)
+    {
+        printStatusMessage("INFO", "No donor records found yet.");
+        pauseScreen();
+        return;
+    }
+
+    tempFile = fopen(TEMP_DONOR_FILE, "wb");
+
+    if (tempFile == NULL)
+    {
+        fclose(sourceFile);
+        printStatusMessage("ERROR", "Unable to open temporary donor file.");
+        pauseScreen();
+        return;
+    }
+
+    printSectionHeader("Approve or Reject Donor Registration");
+    printf("Enter donor ID: ");
+    while (scanf("%d", &donorId) != 1)
+    {
+        printf("Invalid input. Enter donor ID again: ");
+        clearInputBuffer();
+    }
+    clearInputBuffer();
+
+    while (fread(&donor, sizeof(Donor), 1, sourceFile) == 1)
+    {
+        if (donor.donorId == donorId)
+        {
+            found = 1;
+            displayDonor(&donor);
+
+            if (donor.approvalStatus != DONOR_PENDING_APPROVAL)
+            {
+                printStatusMessage("INFO", "Only pending donor registrations can be approved or rejected here.");
+            }
+            else
+            {
+                printf("  1. Approve\n");
+                printf("  2. Reject\n");
+                printf("Enter choice: ");
+                while (scanf("%d", &choice) != 1 || (choice != 1 && choice != 2))
+                {
+                    printf("Invalid choice. Enter 1 to approve or 2 to reject: ");
+                    clearInputBuffer();
+                }
+                clearInputBuffer();
+
+                if (choice == 1)
+                {
+                    donor.approvalStatus = DONOR_APPROVED;
+                    printStatusMessage("SUCCESS", "Donor registration approved.");
+                }
+                else
+                {
+                    donor.approvalStatus = DONOR_REJECTED;
+                    strcpy(donor.availabilityStatus, "0");
+                    printStatusMessage("SUCCESS", "Donor registration rejected.");
+                }
+
+                updated = 1;
+            }
+        }
+
+        if (fwrite(&donor, sizeof(Donor), 1, tempFile) != 1)
+        {
+            fclose(sourceFile);
+            fclose(tempFile);
+            remove(TEMP_DONOR_FILE);
+            printStatusMessage("ERROR", "Failed to update donor registration status.");
+            pauseScreen();
+            return;
+        }
+    }
+
+    fclose(sourceFile);
+    fclose(tempFile);
+
+    if (!found)
+    {
+        remove(TEMP_DONOR_FILE);
+        printf("\n[INFO] No donor found with ID %d.\n", donorId);
+        pauseScreen();
+        return;
+    }
+
+    if (!updated)
+    {
+        remove(TEMP_DONOR_FILE);
+        pauseScreen();
+        return;
+    }
+
+    if (remove(DONOR_FILE) != 0 || rename(TEMP_DONOR_FILE, DONOR_FILE) != 0)
+    {
+        printStatusMessage("ERROR", "Failed to replace donor file after approval update.");
+        pauseScreen();
+        return;
+    }
+
+    writeActivityLog("Updated donor registration approval status.");
     pauseScreen();
 }
 
@@ -2341,7 +2654,7 @@ void matchDonorsByBloodGroup(void)
 
     printSectionHeader("Matched Available Donors");
     printf("%-18s : %s\n", "Blood Group Filter", bloodGroup);
-    printf("%-18s : %s\n", "Availability Rule", "Only donors with status 1 are shown");
+    printf("%-18s : %s\n", "Eligibility Rule", "Approved and available donors only");
     printLine('-', 76);
     printf("%-8s %-22s %-10s %-16s %-12s\n",
            "ID",
@@ -2353,7 +2666,7 @@ void matchDonorsByBloodGroup(void)
 
     while (fread(&donor, sizeof(Donor), 1, donorFile) == 1)
     {
-        if (strcmp(donor.bloodGroup, bloodGroup) == 0 && isDonorAvailable(&donor))
+        if (strcmp(donor.bloodGroup, bloodGroup) == 0 && isDonorEligibleForAssignment(&donor))
         {
             printMatchedDonorRow(&donor);
             found = 1;
@@ -2444,7 +2757,7 @@ void matchDonorsByRequestId(void)
     while (fread(&donor, sizeof(Donor), 1, donorFile) == 1)
     {
         if (strcmp(donor.bloodGroup, request.bloodGroupNeeded) == 0 &&
-            isDonorAvailable(&donor))
+            isDonorEligibleForAssignment(&donor))
         {
             printMatchedDonorRow(&donor);
             donorFound = 1;
@@ -2626,7 +2939,7 @@ void assignDonorToRequest(void)
                     while (fread(&donor, sizeof(Donor), 1, donorFile) == 1)
                     {
                         if (strcmp(donor.bloodGroup, request.bloodGroupNeeded) == 0 &&
-                            isDonorAvailable(&donor) &&
+                            isDonorEligibleForAssignment(&donor) &&
                             !isDonorAssignedToActiveRequest(donor.donorId, request.requestId))
                         {
                             printMatchedDonorRow(&donor);
@@ -2655,7 +2968,7 @@ void assignDonorToRequest(void)
                             donorFound = 1;
 
                             if (strcmp(donor.bloodGroup, request.bloodGroupNeeded) == 0 &&
-                                isDonorAvailable(&donor) &&
+                                isDonorEligibleForAssignment(&donor) &&
                                 !isDonorAssignedToActiveRequest(donor.donorId, request.requestId))
                             {
                                 validDonor = 1;
@@ -2680,7 +2993,7 @@ void assignDonorToRequest(void)
                 }
                 else
                 {
-                    printStatusMessage("ERROR", "Donor unavailable, already assigned, or blood group mismatch.");
+                    printStatusMessage("ERROR", "Donor must be approved, available, unassigned, and blood-group matched.");
                 }
             }
         }
@@ -3354,7 +3667,7 @@ void showDonorSummary(void)
     {
         totalDonors++;
 
-        if (isDonorAvailable(&donor))
+        if (isDonorEligibleForAssignment(&donor))
         {
             availableDonors++;
         }
@@ -3368,8 +3681,8 @@ void showDonorSummary(void)
 
     printSectionHeader("Donor Summary Report");
     printf("%-22s : %d\n", "Total Donors", totalDonors);
-    printf("%-22s : %d\n", "Available Donors", availableDonors);
-    printf("%-22s : %d\n", "Unavailable Donors", unavailableDonors);
+    printf("%-22s : %d\n", "Approved Available", availableDonors);
+    printf("%-22s : %d\n", "Not Assignable", unavailableDonors);
     printLine('=', 72);
 
     writeActivityLog("Viewed donor summary report.");
@@ -3400,7 +3713,7 @@ void viewPublicBloodGroupAvailability(void)
 
     while (fread(&donor, sizeof(Donor), 1, file) == 1)
     {
-        if (isDonorAvailable(&donor))
+        if (isDonorEligibleForAssignment(&donor))
         {
             if (strcmp(donor.bloodGroup, "A+") == 0)
             {
@@ -3440,6 +3753,7 @@ void viewPublicBloodGroupAvailability(void)
     fclose(file);
 
     printSectionHeader("Public Blood Group Availability");
+    printf("Only approved and available donors are counted.\n");
     printf("%-15s : %d\n", "A+", aPositive);
     printf("%-15s : %d\n", "A-", aNegative);
     printf("%-15s : %d\n", "B+", bPositive);
@@ -3555,7 +3869,7 @@ void exportDonorReportToTXT(void)
     {
         totalDonors++;
 
-        if (isDonorAvailable(&donor))
+        if (isDonorEligibleForAssignment(&donor))
         {
             availableDonors++;
         }
@@ -3573,14 +3887,15 @@ void exportDonorReportToTXT(void)
         fprintf(reportFile, "Address            : %s\n", donor.address);
         fprintf(reportFile, "Last Donation Date : %s\n", donor.lastDonationDate);
         fprintf(reportFile, "Availability       : %s\n", getAvailabilityText(&donor));
+        fprintf(reportFile, "Account Status     : %s\n", getDonorApprovalStatusText(donor.approvalStatus));
         fprintf(reportFile, "Donation Count     : %d\n", donor.donationCount);
         fprintf(reportFile, "------------------------------------------------------------\n");
     }
 
     fprintf(reportFile, "\nSummary\n");
     fprintf(reportFile, "Total Donors       : %d\n", totalDonors);
-    fprintf(reportFile, "Available Donors   : %d\n", availableDonors);
-    fprintf(reportFile, "Unavailable Donors : %d\n", unavailableDonors);
+    fprintf(reportFile, "Approved Available : %d\n", availableDonors);
+    fprintf(reportFile, "Not Assignable     : %d\n", unavailableDonors);
 
     fclose(dataFile);
     fclose(reportFile);
