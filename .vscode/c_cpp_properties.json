@@ -3,9 +3,11 @@
         {
             "name": "Win32",
             "includePath": [
-                "${workspaceFolder}/**"
+                "${workspaceFolder}/**",
+                "C:/Program Files/CodeBlocks/MinGW/x86_64-w64-mingw32/include",
+                "C:/Program Files/CodeBlocks/MinGW/lib/gcc/x86_64-w64-mingw32/14.2.0/include"
             ],
-            "compilerPath": "C:/Users/NSU/AppData/Local/Microsoft/WinGet/Packages/BrechtSanders.WinLibs.POSIX.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe/mingw64/bin/gcc.exe",
+            "compilerPath": "C:/Program Files/CodeBlocks/MinGW/bin/gcc.exe",
             "cStandard": "c17",
             "cppStandard": "c++17",
             "intelliSenseMode": "windows-gcc-x64"
