@@ -85,6 +85,10 @@ void donorMenu(int donorId);
 void requestMenu(void);
 void reportMenu(void);
 void requesterAccess(void);
+void requesterMenu(int requestId, const char *trackingPIN);
+void viewRequesterRequest(int requestId, const char *trackingPIN);
+void viewAssignedDonorForRequest(int requestId, const char *trackingPIN);
+void confirmRequesterDonationByCredentials(int requestId, const char *trackingPIN);
 void guestMenu(void);
 void clearInputBuffer(void);
 int getMenuChoice(void);
@@ -469,8 +473,303 @@ void guestMenu(void)
 
 void requesterAccess(void)
 {
+    FILE *file;
+    Request request;
+    int requestId;
+    char trackingPIN[10];
+    int idFound = 0;
+    int pinMatched = 0;
+
     printSectionHeader("Requester Access");
-    printStatusMessage("INFO", "Requester access will be implemented later.");
+
+    file = fopen(REQUEST_FILE, "rb");
+
+    if (file == NULL)
+    {
+        printStatusMessage("INFO", "No request records found yet.");
+        pauseScreen();
+        return;
+    }
+
+    printf("Enter Request ID: ");
+    while (scanf("%d", &requestId) != 1)
+    {
+        printf("Invalid input. Enter Request ID again: ");
+        clearInputBuffer();
+    }
+    clearInputBuffer();
+
+    getTextInput("Enter Tracking PIN: ", trackingPIN, sizeof(trackingPIN));
+
+    while (fread(&request, sizeof(Request), 1, file) == 1)
+    {
+        if (request.requestId == requestId)
+        {
+            idFound = 1;
+
+            if (strcmp(request.trackingPIN, trackingPIN) == 0)
+            {
+                pinMatched = 1;
+            }
+
+            break;
+        }
+    }
+
+    fclose(file);
+
+    if (!idFound)
+    {
+        printf("\n[INFO] No request found with ID %d.\n", requestId);
+        pauseScreen();
+        return;
+    }
+
+    if (!pinMatched)
+    {
+        printStatusMessage("ERROR", "Invalid Tracking PIN for this request.");
+        pauseScreen();
+        return;
+    }
+
+    printStatusMessage("SUCCESS", "Request access verified.");
+    pauseScreen();
+    requesterMenu(requestId, trackingPIN);
+}
+
+void requesterMenu(int requestId, const char *trackingPIN)
+{
+    int choice;
+
+    while (1)
+    {
+        printSectionHeader("Requester Menu");
+        printf("  1. View My Request\n");
+        printf("  2. View Assigned Donor\n");
+        printf("  3. Confirm Donation Completed\n");
+        printf("  4. Logout\n");
+        printLine('-', 63);
+
+        choice = getMenuChoice();
+
+        switch (choice)
+        {
+        case 1:
+            viewRequesterRequest(requestId, trackingPIN);
+            break;
+        case 2:
+            viewAssignedDonorForRequest(requestId, trackingPIN);
+            break;
+        case 3:
+            confirmRequesterDonationByCredentials(requestId, trackingPIN);
+            break;
+        case 4:
+            return;
+        default:
+            printStatusMessage("ERROR", "Invalid menu choice. Please try again.");
+            pauseScreen();
+        }
+    }
+}
+
+void viewRequesterRequest(int requestId, const char *trackingPIN)
+{
+    FILE *file;
+    Request request;
+    int found = 0;
+
+    file = fopen(REQUEST_FILE, "rb");
+
+    if (file == NULL)
+    {
+        printStatusMessage("INFO", "No request records found yet.");
+        pauseScreen();
+        return;
+    }
+
+    while (fread(&request, sizeof(Request), 1, file) == 1)
+    {
+        if (request.requestId == requestId &&
+            strcmp(request.trackingPIN, trackingPIN) == 0)
+        {
+            printStatusMessage("SUCCESS", "Request found.");
+            displayRequest(&request);
+            found = 1;
+            break;
+        }
+    }
+
+    fclose(file);
+
+    if (!found)
+    {
+        printStatusMessage("ERROR", "Unable to verify this request.");
+    }
+
+    pauseScreen();
+}
+
+void viewAssignedDonorForRequest(int requestId, const char *trackingPIN)
+{
+    FILE *requestFile;
+    FILE *donorFile;
+    Request request;
+    Donor donor;
+    int requestFound = 0;
+    int donorFound = 0;
+
+    requestFile = fopen(REQUEST_FILE, "rb");
+
+    if (requestFile == NULL)
+    {
+        printStatusMessage("INFO", "No request records found yet.");
+        pauseScreen();
+        return;
+    }
+
+    while (fread(&request, sizeof(Request), 1, requestFile) == 1)
+    {
+        if (request.requestId == requestId &&
+            strcmp(request.trackingPIN, trackingPIN) == 0)
+        {
+            requestFound = 1;
+            break;
+        }
+    }
+
+    fclose(requestFile);
+
+    if (!requestFound)
+    {
+        printStatusMessage("ERROR", "Unable to verify this request.");
+        pauseScreen();
+        return;
+    }
+
+    if (request.assignedDonorId == 0)
+    {
+        printStatusMessage("INFO", "No donor has been assigned to this request yet.");
+        pauseScreen();
+        return;
+    }
+
+    donorFile = fopen(DONOR_FILE, "rb");
+
+    if (donorFile == NULL)
+    {
+        printStatusMessage("INFO", "No donor records found yet.");
+        pauseScreen();
+        return;
+    }
+
+    while (fread(&donor, sizeof(Donor), 1, donorFile) == 1)
+    {
+        if (donor.donorId == request.assignedDonorId)
+        {
+            printStatusMessage("SUCCESS", "Assigned donor found.");
+            displayDonor(&donor);
+            donorFound = 1;
+            break;
+        }
+    }
+
+    fclose(donorFile);
+
+    if (!donorFound)
+    {
+        printStatusMessage("INFO", "Assigned donor record was not found.");
+    }
+
+    pauseScreen();
+}
+
+void confirmRequesterDonationByCredentials(int requestId, const char *trackingPIN)
+{
+    FILE *sourceFile;
+    FILE *tempFile;
+    Request request;
+    Request confirmedRequest;
+    int requestFound = 0;
+    int confirmed = 0;
+
+    sourceFile = fopen(REQUEST_FILE, "rb");
+
+    if (sourceFile == NULL)
+    {
+        printStatusMessage("INFO", "No request records found yet.");
+        pauseScreen();
+        return;
+    }
+
+    tempFile = fopen(TEMP_REQUEST_FILE, "wb");
+
+    if (tempFile == NULL)
+    {
+        fclose(sourceFile);
+        printStatusMessage("ERROR", "Unable to open temporary request file.");
+        pauseScreen();
+        return;
+    }
+
+    while (fread(&request, sizeof(Request), 1, sourceFile) == 1)
+    {
+        if (request.requestId == requestId &&
+            strcmp(request.trackingPIN, trackingPIN) == 0)
+        {
+            requestFound = 1;
+
+            if (request.requestStatus == REQUEST_MATCHED && request.assignedDonorId != 0)
+            {
+                request.requesterConfirmed = 1;
+                request.requestStatus = REQUEST_WAITING_VERIFICATION;
+                confirmedRequest = request;
+                confirmed = 1;
+            }
+            else
+            {
+                printStatusMessage("ERROR", "Donation can be confirmed only when the request is matched.");
+            }
+        }
+
+        if (fwrite(&request, sizeof(Request), 1, tempFile) != 1)
+        {
+            fclose(sourceFile);
+            fclose(tempFile);
+            remove(TEMP_REQUEST_FILE);
+            printStatusMessage("ERROR", "Failed to confirm donation.");
+            pauseScreen();
+            return;
+        }
+    }
+
+    fclose(sourceFile);
+    fclose(tempFile);
+
+    if (!requestFound)
+    {
+        remove(TEMP_REQUEST_FILE);
+        printStatusMessage("ERROR", "Unable to verify this request.");
+        pauseScreen();
+        return;
+    }
+
+    if (!confirmed)
+    {
+        remove(TEMP_REQUEST_FILE);
+        pauseScreen();
+        return;
+    }
+
+    if (remove(REQUEST_FILE) != 0 || rename(TEMP_REQUEST_FILE, REQUEST_FILE) != 0)
+    {
+        printStatusMessage("ERROR", "Failed to replace request file after confirmation.");
+        pauseScreen();
+        return;
+    }
+
+    createDonationRecord(&confirmedRequest);
+    printStatusMessage("SUCCESS", "Donation completion submitted for admin verification.");
+    writeActivityLog("Requester confirmed donation completion.");
     pauseScreen();
 }
 
