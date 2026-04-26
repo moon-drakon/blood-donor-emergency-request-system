@@ -143,6 +143,10 @@ void exportDonorReportToTXT(void);
 void exportRequestReportToTXT(void);
 void exportDonationReportToTXT(void);
 void viewDonationRecords(void);
+void searchDonationHistoryByDonorId(void);
+void searchDonationHistoryByRequestId(void);
+void viewMyDonationHistory(int donorId);
+void viewMyDonationCount(int donorId);
 void viewPublicBloodGroupAvailability(void);
 void viewActivityLog(void);
 void writeActivityLog(const char *action);
@@ -269,8 +273,10 @@ void showReportMenu(void)
     printf("  3. Export Donor Report to TXT\n");
     printf("  4. Export Request Report to TXT\n");
     printf("  5. Export Donation Report to TXT\n");
-    printf("  6. View Donation Records\n");
-    printf("  7. View Activity Log\n");
+    printf("  6. View All Donation History\n");
+    printf("  7. Search Donation History by Donor ID\n");
+    printf("  8. Search Donation History by Request ID\n");
+    printf("  9. View Activity Log\n");
     printf("  0. Back to Main Menu\n");
     printLine('-', 63);
 }
@@ -435,6 +441,12 @@ void reportMenu(void)
             viewDonationRecords();
             break;
         case 7:
+            searchDonationHistoryByDonorId();
+            break;
+        case 8:
+            searchDonationHistoryByRequestId();
+            break;
+        case 9:
             viewActivityLog();
             break;
         case 0:
@@ -1030,6 +1042,8 @@ void donorMenu(int donorId)
         printSectionHeader("Donor Portal");
         printf("  1. View My Profile\n");
         printf("  2. Change Password\n");
+        printf("  3. View My Donation History\n");
+        printf("  4. View My Total Donation Count\n");
         printf("  0. Logout\n");
         printLine('-', 63);
 
@@ -1042,6 +1056,12 @@ void donorMenu(int donorId)
             break;
         case 2:
             changeDonorPassword(donorId);
+            break;
+        case 3:
+            viewMyDonationHistory(donorId);
+            break;
+        case 4:
+            viewMyDonationCount(donorId);
             break;
         case 0:
             return;
@@ -2819,6 +2839,163 @@ void viewDonationRecords(void)
     }
 
     fclose(file);
+    pauseScreen();
+}
+
+void searchDonationHistoryByDonorId(void)
+{
+    FILE *file;
+    DonationRecord record;
+    int donorId;
+    int found = 0;
+
+    printf("\nEnter donor ID to search donation history: ");
+    while (scanf("%d", &donorId) != 1)
+    {
+        printf("Invalid input. Enter donor ID again: ");
+        clearInputBuffer();
+    }
+    clearInputBuffer();
+
+    file = fopen(DONATION_FILE, "rb");
+
+    if (file == NULL)
+    {
+        printStatusMessage("INFO", "No donation records found yet.");
+        pauseScreen();
+        return;
+    }
+
+    printSectionHeader("Donation History by Donor ID");
+    printf("%-24s : %d\n", "Donor ID", donorId);
+
+    while (fread(&record, sizeof(DonationRecord), 1, file) == 1)
+    {
+        if (record.donorId == donorId)
+        {
+            displayDonationRecord(&record);
+            found = 1;
+        }
+    }
+
+    fclose(file);
+
+    if (!found)
+    {
+        printStatusMessage("INFO", "No donation history found for this donor.");
+    }
+
+    pauseScreen();
+}
+
+void searchDonationHistoryByRequestId(void)
+{
+    FILE *file;
+    DonationRecord record;
+    int requestId;
+    int found = 0;
+
+    printf("\nEnter request ID to search donation history: ");
+    while (scanf("%d", &requestId) != 1)
+    {
+        printf("Invalid input. Enter request ID again: ");
+        clearInputBuffer();
+    }
+    clearInputBuffer();
+
+    file = fopen(DONATION_FILE, "rb");
+
+    if (file == NULL)
+    {
+        printStatusMessage("INFO", "No donation records found yet.");
+        pauseScreen();
+        return;
+    }
+
+    printSectionHeader("Donation History by Request ID");
+    printf("%-24s : %d\n", "Request ID", requestId);
+
+    while (fread(&record, sizeof(DonationRecord), 1, file) == 1)
+    {
+        if (record.requestId == requestId)
+        {
+            displayDonationRecord(&record);
+            found = 1;
+        }
+    }
+
+    fclose(file);
+
+    if (!found)
+    {
+        printStatusMessage("INFO", "No donation history found for this request.");
+    }
+
+    pauseScreen();
+}
+
+void viewMyDonationHistory(int donorId)
+{
+    FILE *file;
+    DonationRecord record;
+    int found = 0;
+
+    file = fopen(DONATION_FILE, "rb");
+
+    if (file == NULL)
+    {
+        printStatusMessage("INFO", "No donation history found yet.");
+        pauseScreen();
+        return;
+    }
+
+    printSectionHeader("My Donation History");
+    printf("%-24s : %d\n", "Donor ID", donorId);
+
+    while (fread(&record, sizeof(DonationRecord), 1, file) == 1)
+    {
+        if (record.donorId == donorId)
+        {
+            displayDonationRecord(&record);
+            found = 1;
+        }
+    }
+
+    fclose(file);
+
+    if (!found)
+    {
+        printStatusMessage("INFO", "No donation history found for your account.");
+    }
+
+    pauseScreen();
+}
+
+void viewMyDonationCount(int donorId)
+{
+    FILE *file;
+    DonationRecord record;
+    int totalDonations = 0;
+
+    file = fopen(DONATION_FILE, "rb");
+
+    if (file != NULL)
+    {
+        while (fread(&record, sizeof(DonationRecord), 1, file) == 1)
+        {
+            if (record.donorId == donorId)
+            {
+                totalDonations++;
+            }
+        }
+
+        fclose(file);
+    }
+
+    printSectionHeader("My Total Donation Count");
+    printf("%-24s : %d\n", "Donor ID", donorId);
+    printf("%-24s : %d\n", "Total Donations", totalDonations);
+    printLine('=', 63);
     pauseScreen();
 }
 
