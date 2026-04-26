@@ -139,6 +139,7 @@ void exportDonorReportToTXT(void);
 void exportRequestReportToTXT(void);
 void exportDonationReportToTXT(void);
 void viewDonationRecords(void);
+void viewPublicBloodGroupAvailability(void);
 void viewActivityLog(void);
 void writeActivityLog(const char *action);
 int donationRecordExistsForRequest(int requestId);
@@ -272,10 +273,10 @@ void showReportMenu(void)
 void showGuestMenu(void)
 {
     printSectionHeader("Guest Access");
-    printf("  1. Create Emergency Request\n");
-    printf("  2. Track Request by ID and PIN\n");
-    printf("  3. Confirm Donation Done\n");
-    printf("  0. Back to Access Menu\n");
+    printf("  1. Create Emergency Blood Request\n");
+    printf("  2. Search Donor by Blood Group\n");
+    printf("  3. View Public Blood Group Availability\n");
+    printf("  4. Back\n");
     printLine('-', 63);
 }
 
@@ -439,9 +440,31 @@ void reportMenu(void)
 
 void guestMenu(void)
 {
-    printSectionHeader("Guest Access");
-    printStatusMessage("INFO", "Guest access will be implemented later.");
-    pauseScreen();
+    int choice;
+
+    while (1)
+    {
+        showGuestMenu();
+        choice = getMenuChoice();
+
+        switch (choice)
+        {
+        case 1:
+            addRequest();
+            break;
+        case 2:
+            matchDonorsByBloodGroup();
+            break;
+        case 3:
+            viewPublicBloodGroupAvailability();
+            break;
+        case 4:
+            return;
+        default:
+            printStatusMessage("ERROR", "Invalid menu choice. Please try again.");
+            pauseScreen();
+        }
+    }
 }
 
 void requesterAccess(void)
@@ -1662,8 +1685,9 @@ void addRequest(void)
     fclose(file);
 
     printStatusMessage("SUCCESS", "Emergency request added successfully.");
-    printf("Requester Tracking PIN : %s\n", request.trackingPIN);
-    printf("Please save the Request ID and PIN for tracking and confirmation.\n");
+    printf("\nRequest ID   : %d\n", request.requestId);
+    printf("Tracking PIN : %s\n", request.trackingPIN);
+    printf("Please save the Request ID and Tracking PIN for tracking and verification.\n");
     displayRequest(&request);
     writeActivityLog("Added a new emergency request.");
     pauseScreen();
@@ -2778,6 +2802,84 @@ void showDonorSummary(void)
     printLine('=', 63);
 
     writeActivityLog("Viewed donor summary report.");
+    pauseScreen();
+}
+
+void viewPublicBloodGroupAvailability(void)
+{
+    FILE *file;
+    Donor donor;
+    int aPositive = 0;
+    int aNegative = 0;
+    int bPositive = 0;
+    int bNegative = 0;
+    int abPositive = 0;
+    int abNegative = 0;
+    int oPositive = 0;
+    int oNegative = 0;
+
+    file = fopen(DONOR_FILE, "rb");
+
+    if (file == NULL)
+    {
+        printStatusMessage("INFO", "No donor records found yet.");
+        pauseScreen();
+        return;
+    }
+
+    while (fread(&donor, sizeof(Donor), 1, file) == 1)
+    {
+        if (isDonorAvailable(&donor))
+        {
+            if (strcmp(donor.bloodGroup, "A+") == 0)
+            {
+                aPositive++;
+            }
+            else if (strcmp(donor.bloodGroup, "A-") == 0)
+            {
+                aNegative++;
+            }
+            else if (strcmp(donor.bloodGroup, "B+") == 0)
+            {
+                bPositive++;
+            }
+            else if (strcmp(donor.bloodGroup, "B-") == 0)
+            {
+                bNegative++;
+            }
+            else if (strcmp(donor.bloodGroup, "AB+") == 0)
+            {
+                abPositive++;
+            }
+            else if (strcmp(donor.bloodGroup, "AB-") == 0)
+            {
+                abNegative++;
+            }
+            else if (strcmp(donor.bloodGroup, "O+") == 0)
+            {
+                oPositive++;
+            }
+            else if (strcmp(donor.bloodGroup, "O-") == 0)
+            {
+                oNegative++;
+            }
+        }
+    }
+
+    fclose(file);
+
+    printSectionHeader("Public Blood Group Availability");
+    printf("%-15s : %d\n", "A+", aPositive);
+    printf("%-15s : %d\n", "A-", aNegative);
+    printf("%-15s : %d\n", "B+", bPositive);
+    printf("%-15s : %d\n", "B-", bNegative);
+    printf("%-15s : %d\n", "AB+", abPositive);
+    printf("%-15s : %d\n", "AB-", abNegative);
+    printf("%-15s : %d\n", "O+", oPositive);
+    printf("%-15s : %d\n", "O-", oNegative);
+    printLine('=', 63);
+
+    writeActivityLog("Guest viewed public blood group availability.");
     pauseScreen();
 }
 
