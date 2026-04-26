@@ -8,6 +8,7 @@
 #define REQUEST_FILE "requests.dat"
 #define TEMP_REQUEST_FILE "temp_requests.dat"
 #define ADMIN_FILE "admins.dat"
+#define TEMP_ADMIN_FILE "temp_admins.dat"
 #define DONATION_FILE "donations.dat"
 #define TEMP_DONATION_FILE "temp_donations.dat"
 #define DONOR_REPORT_FILE "donor_report.txt"
@@ -78,7 +79,7 @@ void showDonorMenu(void);
 void showRequestMenu(void);
 void showReportMenu(void);
 void showGuestMenu(void);
-void adminMenu(void);
+void adminMenu(int adminId);
 void adminDonorMenu(void);
 void donorMenu(int donorId);
 void requestMenu(void);
@@ -107,7 +108,7 @@ void displayDonationRecord(const DonationRecord *record);
 
 void initializeDefaultAdmin(void);
 int adminLogin(void);
-void changeAdminPassword(void);
+void changeAdminPassword(int adminId);
 int donorLogin(void);
 void viewOwnDonorProfile(int donorId);
 void changeOwnDonorAvailability(int donorId);
@@ -147,6 +148,7 @@ int main(void)
 {
     int choice;
     int donorId;
+    int adminId;
 
     initializeDefaultAdmin();
     srand((unsigned int)time(NULL));
@@ -159,9 +161,10 @@ int main(void)
         switch (choice)
         {
         case 1:
-            if (adminLogin())
+            adminId = adminLogin();
+            if (adminId != 0)
             {
-                adminMenu();
+                adminMenu(adminId);
             }
             break;
         case 2:
@@ -276,7 +279,7 @@ void showGuestMenu(void)
     printLine('-', 63);
 }
 
-void adminMenu(void)
+void adminMenu(int adminId)
 {
     int choice;
 
@@ -297,7 +300,7 @@ void adminMenu(void)
             reportMenu();
             break;
         case 4:
-            changeAdminPassword();
+            changeAdminPassword(adminId);
             break;
         case 0:
             return;
@@ -527,7 +530,7 @@ int adminLogin(void)
         printStatusMessage("SUCCESS", "Admin login successful.");
         writeActivityLog("Admin logged in.");
         pauseScreen();
-        return 1;
+        return admin.adminId;
     }
 
     printStatusMessage("ERROR", "Invalid Admin ID or password.");
@@ -536,40 +539,21 @@ int adminLogin(void)
     return 0;
 }
 
-void changeAdminPassword(void)
+void changeAdminPassword(int adminId)
 {
-    FILE *file;
+    FILE *sourceFile;
+    FILE *tempFile;
     Admin admin;
     char currentPassword[30];
     char newPassword[30];
-
-    file = fopen(ADMIN_FILE, "rb");
-
-    if (file == NULL || fread(&admin, sizeof(Admin), 1, file) != 1)
-    {
-        if (file != NULL)
-        {
-            fclose(file);
-        }
-
-        printStatusMessage("ERROR", "Unable to read admin account.");
-        pauseScreen();
-        return;
-    }
-
-    fclose(file);
+    char confirmPassword[30];
+    int found = 0;
+    int passwordChanged = 0;
 
     printSectionHeader("Change Admin Password");
     getTextInput("Enter current password: ", currentPassword, sizeof(currentPassword));
-
-    if (strcmp(currentPassword, admin.password) != 0)
-    {
-        printStatusMessage("ERROR", "Current password is incorrect.");
-        pauseScreen();
-        return;
-    }
-
     getTextInput("Enter new password: ", newPassword, sizeof(newPassword));
+    getTextInput("Confirm new password: ", confirmPassword, sizeof(confirmPassword));
 
     if (strlen(newPassword) == 0)
     {
@@ -578,24 +562,82 @@ void changeAdminPassword(void)
         return;
     }
 
-    strcpy(admin.password, newPassword);
-    admin.adminId = 1001;
-    strcpy(admin.name, "System Admin");
-    file = fopen(ADMIN_FILE, "wb");
-
-    if (file == NULL || fwrite(&admin, sizeof(Admin), 1, file) != 1)
+    if (strcmp(newPassword, confirmPassword) != 0)
     {
-        if (file != NULL)
-        {
-            fclose(file);
-        }
-
-        printStatusMessage("ERROR", "Failed to update admin password.");
+        printStatusMessage("ERROR", "New passwords do not match.");
         pauseScreen();
         return;
     }
 
-    fclose(file);
+    sourceFile = fopen(ADMIN_FILE, "rb");
+
+    if (sourceFile == NULL)
+    {
+        printStatusMessage("ERROR", "Unable to read admin account.");
+        pauseScreen();
+        return;
+    }
+
+    tempFile = fopen(TEMP_ADMIN_FILE, "wb");
+
+    if (tempFile == NULL)
+    {
+        fclose(sourceFile);
+        printStatusMessage("ERROR", "Unable to open temporary admin file.");
+        pauseScreen();
+        return;
+    }
+
+    while (fread(&admin, sizeof(Admin), 1, sourceFile) == 1)
+    {
+        if (admin.adminId == adminId)
+        {
+            found = 1;
+
+            if (strcmp(currentPassword, admin.password) == 0)
+            {
+                strcpy(admin.password, newPassword);
+                passwordChanged = 1;
+            }
+        }
+
+        if (fwrite(&admin, sizeof(Admin), 1, tempFile) != 1)
+        {
+            fclose(sourceFile);
+            fclose(tempFile);
+            remove(TEMP_ADMIN_FILE);
+            printStatusMessage("ERROR", "Failed to update admin password.");
+            pauseScreen();
+            return;
+        }
+    }
+
+    fclose(sourceFile);
+    fclose(tempFile);
+
+    if (!found)
+    {
+        remove(TEMP_ADMIN_FILE);
+        printStatusMessage("ERROR", "Admin account was not found.");
+        pauseScreen();
+        return;
+    }
+
+    if (!passwordChanged)
+    {
+        remove(TEMP_ADMIN_FILE);
+        printStatusMessage("ERROR", "Current password is incorrect.");
+        pauseScreen();
+        return;
+    }
+
+    if (remove(ADMIN_FILE) != 0 || rename(TEMP_ADMIN_FILE, ADMIN_FILE) != 0)
+    {
+        printStatusMessage("ERROR", "Failed to replace admin file after password change.");
+        pauseScreen();
+        return;
+    }
+
     printStatusMessage("SUCCESS", "Admin password changed successfully.");
     writeActivityLog("Admin password changed.");
     pauseScreen();
@@ -664,6 +706,7 @@ void donorMenu(int donorId)
     {
         printSectionHeader("Donor Portal");
         printf("  1. View My Profile\n");
+        printf("  2. Change Password\n");
         printf("  0. Logout\n");
         printLine('-', 63);
 
@@ -673,6 +716,9 @@ void donorMenu(int donorId)
         {
         case 1:
             viewOwnDonorProfile(donorId);
+            break;
+        case 2:
+            changeDonorPassword(donorId);
             break;
         case 0:
             return;
@@ -798,6 +844,7 @@ void changeDonorPassword(int donorId)
     Donor donor;
     char currentPassword[30];
     char newPassword[30];
+    char confirmPassword[30];
     int found = 0;
     int passwordChanged = 0;
 
@@ -823,6 +870,27 @@ void changeDonorPassword(int donorId)
     printSectionHeader("Change Donor Password");
     getTextInput("Enter current password: ", currentPassword, sizeof(currentPassword));
     getTextInput("Enter new password: ", newPassword, sizeof(newPassword));
+    getTextInput("Confirm new password: ", confirmPassword, sizeof(confirmPassword));
+
+    if (strlen(newPassword) == 0)
+    {
+        fclose(sourceFile);
+        fclose(tempFile);
+        remove(TEMP_DONOR_FILE);
+        printStatusMessage("ERROR", "Password cannot be empty.");
+        pauseScreen();
+        return;
+    }
+
+    if (strcmp(newPassword, confirmPassword) != 0)
+    {
+        fclose(sourceFile);
+        fclose(tempFile);
+        remove(TEMP_DONOR_FILE);
+        printStatusMessage("ERROR", "New passwords do not match.");
+        pauseScreen();
+        return;
+    }
 
     while (fread(&donor, sizeof(Donor), 1, sourceFile) == 1)
     {
@@ -830,7 +898,7 @@ void changeDonorPassword(int donorId)
         {
             found = 1;
 
-            if (strcmp(currentPassword, donor.password) == 0 && strlen(newPassword) > 0)
+            if (strcmp(currentPassword, donor.password) == 0)
             {
                 strcpy(donor.password, newPassword);
                 passwordChanged = 1;
@@ -862,7 +930,7 @@ void changeDonorPassword(int donorId)
     if (!passwordChanged)
     {
         remove(TEMP_DONOR_FILE);
-        printStatusMessage("ERROR", "Current password is incorrect or new password is empty.");
+        printStatusMessage("ERROR", "Current password is incorrect.");
         pauseScreen();
         return;
     }
