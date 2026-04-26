@@ -79,7 +79,8 @@ void showRequestMenu(void);
 void showReportMenu(void);
 void showGuestMenu(void);
 void adminMenu(void);
-void donorMenu(void);
+void adminDonorMenu(void);
+void donorMenu(int donorId);
 void requestMenu(void);
 void reportMenu(void);
 void requesterAccess(void);
@@ -108,7 +109,6 @@ void initializeDefaultAdmin(void);
 int adminLogin(void);
 void changeAdminPassword(void);
 int donorLogin(void);
-void donorPortalMenu(int donorId);
 void viewOwnDonorProfile(int donorId);
 void changeOwnDonorAvailability(int donorId);
 void changeDonorPassword(int donorId);
@@ -146,6 +146,7 @@ void createDonationRecord(const Request *request);
 int main(void)
 {
     int choice;
+    int donorId;
 
     initializeDefaultAdmin();
     srand((unsigned int)time(NULL));
@@ -164,7 +165,11 @@ int main(void)
             }
             break;
         case 2:
-            donorLogin();
+            donorId = donorLogin();
+            if (donorId != 0)
+            {
+                donorMenu(donorId);
+            }
             break;
         case 3:
             requesterAccess();
@@ -283,7 +288,7 @@ void adminMenu(void)
         switch (choice)
         {
         case 1:
-            donorMenu();
+            adminDonorMenu();
             break;
         case 2:
             requestMenu();
@@ -303,7 +308,7 @@ void adminMenu(void)
     }
 }
 
-void donorMenu(void)
+void adminDonorMenu(void)
 {
     int choice;
 
@@ -598,13 +603,60 @@ void changeAdminPassword(void)
 
 int donorLogin(void)
 {
+    FILE *file;
+    Donor donor;
+    int inputId;
+    char inputPassword[30];
+    int loginSuccess = 0;
+
     printSectionHeader("Donor Login");
-    printStatusMessage("INFO", "Donor login will be implemented later.");
+
+    file = fopen(DONOR_FILE, "rb");
+
+    if (file == NULL)
+    {
+        printStatusMessage("INFO", "No donor records found yet.");
+        pauseScreen();
+        return 0;
+    }
+
+    printf("Enter Donor ID: ");
+    while (scanf("%d", &inputId) != 1)
+    {
+        printf("Invalid input. Enter Donor ID again: ");
+        clearInputBuffer();
+    }
+    clearInputBuffer();
+
+    getTextInput("Enter Password: ", inputPassword, sizeof(inputPassword));
+
+    while (fread(&donor, sizeof(Donor), 1, file) == 1)
+    {
+        if (donor.donorId == inputId && strcmp(donor.password, inputPassword) == 0)
+        {
+            loginSuccess = 1;
+            break;
+        }
+    }
+
+    fclose(file);
+
+    if (loginSuccess)
+    {
+        printf("\nWelcome, %s!\n", donor.name);
+        printStatusMessage("SUCCESS", "Donor login successful.");
+        writeActivityLog("Donor logged in.");
+        pauseScreen();
+        return inputId;
+    }
+
+    printStatusMessage("ERROR", "Invalid Donor ID or password.");
+    writeActivityLog("Failed donor login attempt.");
     pauseScreen();
     return 0;
 }
 
-void donorPortalMenu(int donorId)
+void donorMenu(int donorId)
 {
     int choice;
 
@@ -612,9 +664,7 @@ void donorPortalMenu(int donorId)
     {
         printSectionHeader("Donor Portal");
         printf("  1. View My Profile\n");
-        printf("  2. Change My Availability\n");
-        printf("  3. Change My Password\n");
-        printf("  0. Back to Access Menu\n");
+        printf("  0. Logout\n");
         printLine('-', 63);
 
         choice = getMenuChoice();
@@ -623,12 +673,6 @@ void donorPortalMenu(int donorId)
         {
         case 1:
             viewOwnDonorProfile(donorId);
-            break;
-        case 2:
-            changeOwnDonorAvailability(donorId);
-            break;
-        case 3:
-            changeDonorPassword(donorId);
             break;
         case 0:
             return;
@@ -1102,6 +1146,7 @@ void addDonor(void)
     FILE *file;
     Donor donor;
 
+    memset(&donor, 0, sizeof(Donor));
     donor.donorId = generateNextDonorId();
     file = fopen(DONOR_FILE, "ab");
 
@@ -1133,7 +1178,17 @@ void addDonor(void)
     getTextInput("Enter availability status (1 for available, 0 for unavailable): ",
                  donor.availabilityStatus,
                  sizeof(donor.availabilityStatus));
-    getTextInput("Create donor password: ", donor.password, sizeof(donor.password));
+
+    do
+    {
+        getTextInput("Create initial donor password: ", donor.password, sizeof(donor.password));
+
+        if (strlen(donor.password) == 0)
+        {
+            printStatusMessage("ERROR", "Password cannot be empty.");
+        }
+    } while (strlen(donor.password) == 0);
+
     donor.donationCount = 0;
 
     /* Save the whole donor record in binary format. */
