@@ -153,7 +153,8 @@ void viewPublicBloodGroupAvailability(void);
 void viewActivityLog(void);
 void writeActivityLog(const char *action);
 int donationRecordExistsForRequest(int requestId);
-void createDonationRecord(const Request *request);
+int createDonationRecord(const Request *request);
+int isDonorAssignedToActiveRequest(int donorId, int currentRequestId);
 
 int main(void)
 {
@@ -196,7 +197,7 @@ int main(void)
             printf("Program closed successfully.\n");
             return 0;
         default:
-            printStatusMessage("ERROR", "Invalid menu choice. Please try again.");
+            printStatusMessage("ERROR", "Please choose a valid menu option.");
             pauseScreen();
         }
     }
@@ -205,42 +206,42 @@ int main(void)
 void showAccessMenu(void)
 {
     printf("\n");
-    printSectionHeader("NSU Blood Donor and Emergency Request Management System");
+    printSectionHeader("NSU Blood Donor System - Access Menu");
     printf("  1. Administrator Login\n");
     printf("  2. Donor Login\n");
     printf("  3. Request Tracking / Requester Access\n");
     printf("  4. Guest Access\n");
     printf("  5. Exit\n");
-    printLine('=', 63);
+    printLine('=', 72);
 }
 
 void showMainMenu(void)
 {
     printf("\n");
-    printSectionHeader("NSU Blood Donor and Emergency Request Management System");
+    printSectionHeader("NSU Blood Donor System - Main Menu");
     printf("  1. Donor Management\n");
     printf("  2. Emergency Request Management\n");
     printf("  3. Reports and Activity Log\n");
     printf("  0. Exit\n");
-    printLine('=', 63);
+    printLine('=', 72);
 }
 
 void showAdminMenu(void)
 {
     printf("\n");
-    printSectionHeader("Admin Dashboard");
+    printSectionHeader("Administrator Dashboard");
     printf("  1. Donor Management\n");
     printf("  2. Emergency Request Management\n");
     printf("  3. Reports and Activity Log\n");
     printf("  4. Change Admin Password\n");
     printf("  5. Assign Donor to Request\n");
     printf("  0. Logout\n");
-    printLine('=', 63);
+    printLine('=', 72);
 }
 
 void showDonorMenu(void)
 {
-    printSectionHeader("Donor Management");
+    printSectionHeader("Admin Donor Management");
     printf("  1. Add Donor\n");
     printf("  2. View All Donors\n");
     printf("  3. Search Donor by ID\n");
@@ -248,12 +249,12 @@ void showDonorMenu(void)
     printf("  5. Delete Donor\n");
     printf("  6. Change Donor Availability\n");
     printf("  0. Back to Main Menu\n");
-    printLine('-', 63);
+    printLine('-', 72);
 }
 
 void showRequestMenu(void)
 {
-    printSectionHeader("Emergency Request Management");
+    printSectionHeader("Admin Request Management");
     printf("  1. Add Emergency Request\n");
     printf("  2. View All Requests\n");
     printf("  3. Search Request by ID\n");
@@ -264,12 +265,12 @@ void showRequestMenu(void)
     printf("  8. Assign Donor to Request\n");
     printf("  9. Admin Verify Donation\n");
     printf("  0. Back to Main Menu\n");
-    printLine('-', 63);
+    printLine('-', 72);
 }
 
 void showReportMenu(void)
 {
-    printSectionHeader("Reports and Activity Log");
+    printSectionHeader("Reports, History, and Activity Log");
     printf("  1. Show Donor Summary\n");
     printf("  2. Show Request Summary\n");
     printf("  3. Export Donor Report to TXT\n");
@@ -280,17 +281,17 @@ void showReportMenu(void)
     printf("  8. Search Donation History by Request ID\n");
     printf("  9. View Activity Log\n");
     printf("  0. Back to Main Menu\n");
-    printLine('-', 63);
+    printLine('-', 72);
 }
 
 void showGuestMenu(void)
 {
-    printSectionHeader("Guest Access");
+    printSectionHeader("Guest Blood Request Services");
     printf("  1. Create Emergency Blood Request\n");
     printf("  2. Search Donor by Blood Group\n");
     printf("  3. View Public Blood Group Availability\n");
     printf("  4. Back\n");
-    printLine('-', 63);
+    printLine('-', 72);
 }
 
 void adminMenu(int adminId)
@@ -545,12 +546,12 @@ void requesterAccess(void)
 
     if (!pinMatched)
     {
-        printStatusMessage("ERROR", "Invalid Tracking PIN for this request.");
+        printStatusMessage("ERROR", "Request ID found, but the Tracking PIN does not match.");
         pauseScreen();
         return;
     }
 
-    printStatusMessage("SUCCESS", "Request access verified.");
+    printStatusMessage("SUCCESS", "Request ID and Tracking PIN verified.");
     pauseScreen();
     requesterMenu(requestId, trackingPIN);
 }
@@ -566,7 +567,7 @@ void requesterMenu(int requestId, const char *trackingPIN)
         printf("  2. View Assigned Donor\n");
         printf("  3. Confirm Donation Completed\n");
         printf("  4. Logout\n");
-        printLine('-', 63);
+        printLine('-', 72);
 
         choice = getMenuChoice();
 
@@ -743,7 +744,7 @@ void confirmRequesterDonationByCredentials(int requestId, const char *trackingPI
             }
             else
             {
-                printStatusMessage("ERROR", "Donation can be confirmed only when the request is matched.");
+                printStatusMessage("ERROR", "Donation can be confirmed only after an admin assigns a matching donor.");
             }
         }
 
@@ -783,7 +784,7 @@ void confirmRequesterDonationByCredentials(int requestId, const char *trackingPI
         return;
     }
 
-    printStatusMessage("SUCCESS", "Donation completion submitted for admin verification.");
+    printStatusMessage("SUCCESS", "Donation completion submitted. Waiting for admin verification.");
     writeActivityLog("Requester confirmed donation completion.");
     pauseScreen();
 }
@@ -835,7 +836,7 @@ int adminLogin(void)
 
     if (file == NULL)
     {
-        printStatusMessage("ERROR", "Unable to open admin file.");
+        printStatusMessage("ERROR", "Unable to open the admin account file.");
         pauseScreen();
         return 0;
     }
@@ -864,13 +865,13 @@ int adminLogin(void)
     if (loginSuccess)
     {
         printf("\nWelcome, %s!\n", admin.name);
-        printStatusMessage("SUCCESS", "Admin login successful.");
+        printStatusMessage("SUCCESS", "Administrator login successful.");
         writeActivityLog("Admin logged in.");
         pauseScreen();
         return admin.adminId;
     }
 
-    printStatusMessage("ERROR", "Invalid Admin ID or password.");
+    printStatusMessage("ERROR", "Invalid Admin ID or password. Returning to access menu.");
     writeActivityLog("Failed admin login attempt.");
     pauseScreen();
     return 0;
@@ -1029,7 +1030,7 @@ int donorLogin(void)
         return inputId;
     }
 
-    printStatusMessage("ERROR", "Invalid Donor ID or password.");
+    printStatusMessage("ERROR", "Invalid Donor ID or password. Returning to access menu.");
     writeActivityLog("Failed donor login attempt.");
     pauseScreen();
     return 0;
@@ -1047,7 +1048,7 @@ void donorMenu(int donorId)
         printf("  3. View My Donation History\n");
         printf("  4. View My Total Donation Count\n");
         printf("  0. Logout\n");
-        printLine('-', 63);
+        printLine('-', 72);
 
         choice = getMenuChoice();
 
@@ -1362,9 +1363,9 @@ void printLine(char symbol, int count)
 void printSectionHeader(const char *title)
 {
     printf("\n");
-    printLine('=', 63);
-    printf("%31s\n", title);
-    printLine('=', 63);
+    printLine('=', 72);
+    printf("  %s\n", title);
+    printLine('=', 72);
 }
 
 void printStatusMessage(const char *type, const char *message)
@@ -1379,13 +1380,13 @@ const char *getRequestStatusText(int status)
     case REQUEST_PENDING:
         return "Pending";
     case REQUEST_MATCHED:
-        return "Matched";
+        return "Matched - Donor Assigned";
     case REQUEST_WAITING_VERIFICATION:
         return "Donation Done, Waiting Verification";
     case REQUEST_FULFILLED:
         return "Fulfilled / Verified";
     default:
-        return "Unknown";
+        return "Unknown Status";
     }
 }
 
@@ -1507,43 +1508,43 @@ void printMatchedDonorRow(const Donor *donor)
 
 void displayDonor(const Donor *donor)
 {
-    printLine('-', 57);
-    printf("%-20s : %d\n", "Donor ID", donor->donorId);
-    printf("%-20s : %s\n", "Name", donor->name);
-    printf("%-20s : %d\n", "Age", donor->age);
-    printf("%-20s : %s\n", "Gender", donor->gender);
-    printf("%-20s : %s\n", "Blood Group", donor->bloodGroup);
-    printf("%-20s : %s\n", "Phone", donor->phone);
-    printf("%-20s : %s\n", "Address", donor->address);
-    printf("%-20s : %s\n", "Last Donation Date", donor->lastDonationDate);
-    printf("%-20s : %s\n", "Availability", getAvailabilityText(donor));
-    printf("%-20s : %d\n", "Donation Count", donor->donationCount);
-    printLine('-', 57);
+    printLine('-', 72);
+    printf("%-24s : %d\n", "Donor ID", donor->donorId);
+    printf("%-24s : %s\n", "Name", donor->name);
+    printf("%-24s : %d\n", "Age", donor->age);
+    printf("%-24s : %s\n", "Gender", donor->gender);
+    printf("%-24s : %s\n", "Blood Group", donor->bloodGroup);
+    printf("%-24s : %s\n", "Phone", donor->phone);
+    printf("%-24s : %s\n", "Address", donor->address);
+    printf("%-24s : %s\n", "Last Donation Date", donor->lastDonationDate);
+    printf("%-24s : %s\n", "Availability", getAvailabilityText(donor));
+    printf("%-24s : %d\n", "Donation Count", donor->donationCount);
+    printLine('-', 72);
 }
 
 void displayRequest(const Request *request)
 {
-    printLine('-', 57);
-    printf("%-20s : %d\n", "Request ID", request->requestId);
-    printf("%-20s : %s\n", "Requester Name", request->requesterName);
-    printf("%-20s : %s\n", "Patient Name", request->patientName);
-    printf("%-20s : %s\n", "Blood Group Needed", request->bloodGroupNeeded);
-    printf("%-20s : %d\n", "Units Needed", request->unitsNeeded);
-    printf("%-20s : %s\n", "Hospital Name", request->hospitalName);
-    printf("%-20s : %s\n", "Location", request->location);
-    printf("%-20s : %s\n", "Contact Number", request->contactNumber);
-    printf("%-20s : %s\n", "Urgency Level", request->urgencyLevel);
-    printf("%-20s : %s\n", "Tracking PIN", request->trackingPIN);
-    printf("%-20s : %d\n", "Assigned Donor ID", request->assignedDonorId);
-    printf("%-20s : %s\n", "Requester Confirmed", request->requesterConfirmed ? "Yes" : "No");
-    printf("%-20s : %s\n", "Admin Verified", request->adminVerified ? "Yes" : "No");
-    printf("%-20s : %s\n", "Request Status", getRequestStatusText(request->requestStatus));
-    printLine('-', 57);
+    printLine('-', 72);
+    printf("%-24s : %d\n", "Request ID", request->requestId);
+    printf("%-24s : %s\n", "Requester Name", request->requesterName);
+    printf("%-24s : %s\n", "Patient Name", request->patientName);
+    printf("%-24s : %s\n", "Blood Group Needed", request->bloodGroupNeeded);
+    printf("%-24s : %d\n", "Units Needed", request->unitsNeeded);
+    printf("%-24s : %s\n", "Hospital Name", request->hospitalName);
+    printf("%-24s : %s\n", "Location", request->location);
+    printf("%-24s : %s\n", "Contact Number", request->contactNumber);
+    printf("%-24s : %s\n", "Urgency Level", request->urgencyLevel);
+    printf("%-24s : %s\n", "Tracking PIN", request->trackingPIN);
+    printf("%-24s : %d\n", "Assigned Donor ID", request->assignedDonorId);
+    printf("%-24s : %s\n", "Requester Confirmed", request->requesterConfirmed ? "Yes" : "No");
+    printf("%-24s : %s\n", "Admin Verified", request->adminVerified ? "Yes" : "No");
+    printf("%-24s : %s\n", "Request Status", getRequestStatusText(request->requestStatus));
+    printLine('-', 72);
 }
 
 void displayDonationRecord(const DonationRecord *record)
 {
-    printLine('-', 57);
+    printLine('-', 72);
     printf("%-24s : %d\n", "Donation ID", record->donationId);
     printf("%-24s : %d\n", "Request ID", record->requestId);
     printf("%-24s : %d\n", "Donor ID", record->donorId);
@@ -1552,7 +1553,7 @@ void displayDonationRecord(const DonationRecord *record)
     printf("%-24s : %s\n", "Donation Date", record->donationDate);
     printf("%-24s : %s\n", "Requester Confirmed", record->requesterConfirmed ? "Yes" : "No");
     printf("%-24s : %s\n", "Admin Verified", record->adminVerified ? "Yes" : "No");
-    printLine('-', 57);
+    printLine('-', 72);
 }
 
 void addDonor(void)
@@ -1616,7 +1617,7 @@ void addDonor(void)
 
     fclose(file);
 
-    printStatusMessage("SUCCESS", "Donor added successfully.");
+    printStatusMessage("SUCCESS", "Donor account created successfully.");
     displayDonor(&donor);
     writeActivityLog("Added a new donor record.");
     pauseScreen();
@@ -1791,7 +1792,7 @@ void updateDonor(void)
         return;
     }
 
-    printStatusMessage("SUCCESS", "Donor updated successfully.");
+    printStatusMessage("SUCCESS", "Donor information updated successfully.");
     writeActivityLog("Updated donor information.");
     pauseScreen();
 }
@@ -1868,7 +1869,7 @@ void deleteDonor(void)
         return;
     }
 
-    printStatusMessage("SUCCESS", "Donor deleted successfully.");
+    printStatusMessage("SUCCESS", "Donor record deleted successfully.");
     writeActivityLog("Deleted a donor record.");
     pauseScreen();
 }
@@ -1970,7 +1971,7 @@ void addRequest(void)
         return;
     }
 
-    printSectionHeader("Add Emergency Request");
+    printSectionHeader("Create Emergency Blood Request");
     printf("Assigned Request ID : %d\n", request.requestId);
 
     getTextInput("Enter requester name: ", request.requesterName, sizeof(request.requesterName));
@@ -2008,10 +2009,12 @@ void addRequest(void)
 
     fclose(file);
 
-    printStatusMessage("SUCCESS", "Emergency request added successfully.");
-    printf("\nRequest ID   : %d\n", request.requestId);
-    printf("Tracking PIN : %s\n", request.trackingPIN);
-    printf("Please save the Request ID and Tracking PIN for tracking and verification.\n");
+    printStatusMessage("SUCCESS", "Emergency blood request saved successfully.");
+    printLine('-', 72);
+    printf("%-24s : %d\n", "Request ID", request.requestId);
+    printf("%-24s : %s\n", "Tracking PIN", request.trackingPIN);
+    printLine('-', 72);
+    printf("Save both values. You need them to track the request and confirm donation.\n");
     displayRequest(&request);
     writeActivityLog("Added a new emergency request.");
     pauseScreen();
@@ -2102,6 +2105,8 @@ void updateRequestStatus(void)
     int searchId;
     int newStatus;
     int found = 0;
+    int statusChanged = 0;
+    int updateRejected = 0;
 
     sourceFile = fopen(REQUEST_FILE, "rb");
 
@@ -2153,7 +2158,49 @@ void updateRequestStatus(void)
                 clearInputBuffer();
             }
             clearInputBuffer();
-            request.requestStatus = newStatus;
+
+            if (newStatus == request.requestStatus)
+            {
+                printStatusMessage("INFO", "Request status is already set to this value.");
+            }
+            else if (request.requestStatus == REQUEST_FULFILLED)
+            {
+                printStatusMessage("ERROR", "Fulfilled requests cannot be changed manually.");
+                updateRejected = 1;
+            }
+            else if (newStatus == REQUEST_PENDING &&
+                     request.assignedDonorId == 0 &&
+                     request.requesterConfirmed == 0 &&
+                     request.adminVerified == 0)
+            {
+                request.requestStatus = newStatus;
+                statusChanged = 1;
+            }
+            else if (newStatus == REQUEST_MATCHED &&
+                     request.requestStatus == REQUEST_PENDING &&
+                     request.assignedDonorId != 0)
+            {
+                request.requestStatus = newStatus;
+                statusChanged = 1;
+            }
+            else if (newStatus == REQUEST_WAITING_VERIFICATION &&
+                     request.requestStatus == REQUEST_MATCHED &&
+                     request.assignedDonorId != 0 &&
+                     request.requesterConfirmed == 1)
+            {
+                request.requestStatus = newStatus;
+                statusChanged = 1;
+            }
+            else if (newStatus == REQUEST_FULFILLED)
+            {
+                printStatusMessage("ERROR", "Use Admin Verify Donation for final verification.");
+                updateRejected = 1;
+            }
+            else
+            {
+                printStatusMessage("ERROR", "Invalid status change for the current request data.");
+                updateRejected = 1;
+            }
         }
 
         if (fwrite(&request, sizeof(Request), 1, tempFile) != 1)
@@ -2174,6 +2221,13 @@ void updateRequestStatus(void)
     {
         remove(TEMP_REQUEST_FILE);
         printf("\n[INFO] No request found with ID %d.\n", searchId);
+        pauseScreen();
+        return;
+    }
+
+    if (updateRejected || !statusChanged)
+    {
+        remove(TEMP_REQUEST_FILE);
         pauseScreen();
         return;
     }
@@ -2468,6 +2522,34 @@ void trackRequestByIdAndPin(void)
     pauseScreen();
 }
 
+int isDonorAssignedToActiveRequest(int donorId, int currentRequestId)
+{
+    FILE *file;
+    Request request;
+
+    file = fopen(REQUEST_FILE, "rb");
+
+    if (file == NULL)
+    {
+        return 0;
+    }
+
+    while (fread(&request, sizeof(Request), 1, file) == 1)
+    {
+        if (request.requestId != currentRequestId &&
+            request.assignedDonorId == donorId &&
+            (request.requestStatus == REQUEST_MATCHED ||
+             request.requestStatus == REQUEST_WAITING_VERIFICATION))
+        {
+            fclose(file);
+            return 1;
+        }
+    }
+
+    fclose(file);
+    return 0;
+}
+
 void assignDonorToRequest(void)
 {
     FILE *sourceFile;
@@ -2520,7 +2602,7 @@ void assignDonorToRequest(void)
 
             if (request.requestStatus != REQUEST_PENDING)
             {
-                printStatusMessage("ERROR", "Only pending requests can be assigned a donor.");
+                printStatusMessage("ERROR", "Only pending requests can receive a donor assignment.");
             }
             else
             {
@@ -2544,7 +2626,8 @@ void assignDonorToRequest(void)
                     while (fread(&donor, sizeof(Donor), 1, donorFile) == 1)
                     {
                         if (strcmp(donor.bloodGroup, request.bloodGroupNeeded) == 0 &&
-                            isDonorAvailable(&donor))
+                            isDonorAvailable(&donor) &&
+                            !isDonorAssignedToActiveRequest(donor.donorId, request.requestId))
                         {
                             printMatchedDonorRow(&donor);
                         }
@@ -2572,7 +2655,8 @@ void assignDonorToRequest(void)
                             donorFound = 1;
 
                             if (strcmp(donor.bloodGroup, request.bloodGroupNeeded) == 0 &&
-                                isDonorAvailable(&donor))
+                                isDonorAvailable(&donor) &&
+                                !isDonorAssignedToActiveRequest(donor.donorId, request.requestId))
                             {
                                 validDonor = 1;
                             }
@@ -2592,11 +2676,11 @@ void assignDonorToRequest(void)
                 }
                 else if (!donorFound)
                 {
-                    printStatusMessage("ERROR", "Donor ID was not found.");
+                    printStatusMessage("ERROR", "No donor record exists with that ID.");
                 }
                 else
                 {
-                    printStatusMessage("ERROR", "Donor is unavailable or blood group does not match.");
+                    printStatusMessage("ERROR", "Donor unavailable, already assigned, or blood group mismatch.");
                 }
             }
         }
@@ -2637,7 +2721,7 @@ void assignDonorToRequest(void)
         return;
     }
 
-    printStatusMessage("SUCCESS", "Donor assigned successfully.");
+    printStatusMessage("SUCCESS", "Donor assigned. Request status is now Matched.");
     writeActivityLog("Assigned donor to emergency request.");
     pauseScreen();
 }
@@ -2667,7 +2751,7 @@ int donationRecordExistsForRequest(int requestId)
     return 0;
 }
 
-void createDonationRecord(const Request *request)
+int createDonationRecord(const Request *request)
 {
     FILE *file;
     DonationRecord record;
@@ -2675,7 +2759,7 @@ void createDonationRecord(const Request *request)
 
     if (donationRecordExistsForRequest(request->requestId))
     {
-        return;
+        return 1;
     }
 
     file = fopen(DONATION_FILE, "ab");
@@ -2683,7 +2767,7 @@ void createDonationRecord(const Request *request)
     if (file == NULL)
     {
         printStatusMessage("ERROR", "Unable to open donation file.");
-        return;
+        return 0;
     }
 
     record.donationId = generateNextDonationId();
@@ -2697,8 +2781,15 @@ void createDonationRecord(const Request *request)
     record.requesterConfirmed = 1;
     record.adminVerified = 1;
 
-    fwrite(&record, sizeof(DonationRecord), 1, file);
+    if (fwrite(&record, sizeof(DonationRecord), 1, file) != 1)
+    {
+        fclose(file);
+        printStatusMessage("ERROR", "Failed to save donation record.");
+        return 0;
+    }
+
     fclose(file);
+    return 1;
 }
 
 void requesterConfirmDonation(void)
@@ -2999,7 +3090,7 @@ void viewMyDonationCount(int donorId)
     printSectionHeader("My Total Donation Count");
     printf("%-24s : %d\n", "Donor ID", donorId);
     printf("%-24s : %d\n", "Total Donations", totalDonations);
-    printLine('=', 63);
+    printLine('=', 72);
     pauseScreen();
 }
 
@@ -3059,21 +3150,21 @@ void verifyDonationCompletion(void)
 
     if (verifiedRequest.requestStatus == REQUEST_FULFILLED)
     {
-        printStatusMessage("ERROR", "This request is already verified. Donation count was not changed.");
+        printStatusMessage("ERROR", "Request already verified. Donation count was not changed.");
         pauseScreen();
         return;
     }
 
     if (verifiedRequest.requestStatus != REQUEST_WAITING_VERIFICATION)
     {
-        printStatusMessage("ERROR", "Request must be waiting for verification.");
+        printStatusMessage("ERROR", "Request must be in Waiting Verification status.");
         pauseScreen();
         return;
     }
 
     if (verifiedRequest.requesterConfirmed != 1)
     {
-        printStatusMessage("ERROR", "Requester confirmation is required before admin verification.");
+        printStatusMessage("ERROR", "Requester confirmation is required before final verification.");
         pauseScreen();
         return;
     }
@@ -3108,6 +3199,13 @@ void verifyDonationCompletion(void)
     if (!donorFound)
     {
         printStatusMessage("ERROR", "Assigned donor record was not found.");
+        pauseScreen();
+        return;
+    }
+
+    if (donationRecordExistsForRequest(requestId))
+    {
+        printStatusMessage("ERROR", "Donation record already exists for this request. Donation count was not changed.");
         pauseScreen();
         return;
     }
@@ -3222,8 +3320,15 @@ void verifyDonationCompletion(void)
         return;
     }
 
-    createDonationRecord(&verifiedRequest);
-    printStatusMessage("SUCCESS", "Donation verified and request fulfilled.");
+    if (!createDonationRecord(&verifiedRequest))
+    {
+        printStatusMessage("ERROR", "Verification was updated, but donation history could not be created.");
+        writeActivityLog("Donation verification completed but donation record creation failed.");
+        pauseScreen();
+        return;
+    }
+
+    printStatusMessage("SUCCESS", "Donation verified. Request is now Fulfilled / Verified.");
     writeActivityLog("Admin verified donation and fulfilled request.");
     pauseScreen();
 }
@@ -3265,7 +3370,7 @@ void showDonorSummary(void)
     printf("%-22s : %d\n", "Total Donors", totalDonors);
     printf("%-22s : %d\n", "Available Donors", availableDonors);
     printf("%-22s : %d\n", "Unavailable Donors", unavailableDonors);
-    printLine('=', 63);
+    printLine('=', 72);
 
     writeActivityLog("Viewed donor summary report.");
     pauseScreen();
@@ -3343,7 +3448,7 @@ void viewPublicBloodGroupAvailability(void)
     printf("%-15s : %d\n", "AB-", abNegative);
     printf("%-15s : %d\n", "O+", oPositive);
     printf("%-15s : %d\n", "O-", oNegative);
-    printLine('=', 63);
+    printLine('=', 72);
 
     writeActivityLog("Guest viewed public blood group availability.");
     pauseScreen();
@@ -3404,7 +3509,7 @@ void showRequestSummary(void)
     printf("%-22s : %d\n", "Waiting Verification", waitingRequests);
     printf("%-22s : %d\n", "Fulfilled Requests", fulfilledRequests);
     printf("%-22s : %d\n", "Other Status", otherRequests);
-    printLine('=', 63);
+    printLine('=', 72);
 
     writeActivityLog("Viewed request summary report.");
     pauseScreen();
@@ -3747,7 +3852,7 @@ void viewActivityLog(void)
         printf("%s", line);
     }
 
-    printLine('=', 63);
+    printLine('=', 72);
     fclose(logFile);
     pauseScreen();
 }
