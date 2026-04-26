@@ -7,7 +7,7 @@
 #define TEMP_DONOR_FILE "temp_donors.dat"
 #define REQUEST_FILE "requests.dat"
 #define TEMP_REQUEST_FILE "temp_requests.dat"
-#define ADMIN_FILE "admin.dat"
+#define ADMIN_FILE "admins.dat"
 #define DONATION_FILE "donations.dat"
 #define TEMP_DONATION_FILE "temp_donations.dat"
 #define DONOR_REPORT_FILE "donor_report.txt"
@@ -54,8 +54,9 @@ typedef struct
 
 typedef struct
 {
-    char username[30];
+    int adminId;
     char password[30];
+    char name[50];
 } Admin;
 
 typedef struct
@@ -157,7 +158,10 @@ int main(void)
         switch (choice)
         {
         case 1:
-            adminLogin();
+            if (adminLogin())
+            {
+                adminMenu();
+            }
             break;
         case 2:
             donorLogin();
@@ -459,16 +463,70 @@ void initializeDefaultAdmin(void)
         return;
     }
 
-    strcpy(admin.username, "admin");
+    admin.adminId = 1001;
     strcpy(admin.password, "admin123");
+    strcpy(admin.name, "System Admin");
     fwrite(&admin, sizeof(Admin), 1, file);
     fclose(file);
 }
 
 int adminLogin(void)
 {
+    FILE *file;
+    Admin admin;
+    int inputId;
+    char inputPassword[30];
+    int loginSuccess = 0;
+
     printSectionHeader("Admin Login");
-    printStatusMessage("INFO", "Administrator login will be implemented later.");
+
+    file = fopen(ADMIN_FILE, "rb");
+
+    if (file == NULL)
+    {
+        initializeDefaultAdmin();
+        file = fopen(ADMIN_FILE, "rb");
+    }
+
+    if (file == NULL)
+    {
+        printStatusMessage("ERROR", "Unable to open admin file.");
+        pauseScreen();
+        return 0;
+    }
+
+    printf("Enter Admin ID: ");
+    while (scanf("%d", &inputId) != 1)
+    {
+        printf("Invalid input. Enter Admin ID again: ");
+        clearInputBuffer();
+    }
+    clearInputBuffer();
+
+    getTextInput("Enter Password: ", inputPassword, sizeof(inputPassword));
+
+    while (fread(&admin, sizeof(Admin), 1, file) == 1)
+    {
+        if (admin.adminId == inputId && strcmp(admin.password, inputPassword) == 0)
+        {
+            loginSuccess = 1;
+            break;
+        }
+    }
+
+    fclose(file);
+
+    if (loginSuccess)
+    {
+        printf("\nWelcome, %s!\n", admin.name);
+        printStatusMessage("SUCCESS", "Admin login successful.");
+        writeActivityLog("Admin logged in.");
+        pauseScreen();
+        return 1;
+    }
+
+    printStatusMessage("ERROR", "Invalid Admin ID or password.");
+    writeActivityLog("Failed admin login attempt.");
     pauseScreen();
     return 0;
 }
@@ -516,6 +574,8 @@ void changeAdminPassword(void)
     }
 
     strcpy(admin.password, newPassword);
+    admin.adminId = 1001;
+    strcpy(admin.name, "System Admin");
     file = fopen(ADMIN_FILE, "wb");
 
     if (file == NULL || fwrite(&admin, sizeof(Admin), 1, file) != 1)
