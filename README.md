@@ -209,13 +209,3 @@ Copyright (c) 2026 moon-drakon. All rights reserved.
 This repository is shared for portfolio review, academic demonstration, and
 learning reference only. Do not copy, redistribute, resubmit, sell, modify, or
 present this project as your own work without written permission.
-
-## Suggested LinkedIn Description
-
-```text
-Built a console-based Blood Donor and Emergency Request Management System in C.
-The system manages donor registration, admin approval, emergency blood requests,
-donor matching, assignment tracking, requester confirmation, admin verification,
-donation history, report generation, and activity logging using file-based data
-storage.
-```
