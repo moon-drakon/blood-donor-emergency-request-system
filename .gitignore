@@ -1,5 +1,21 @@
+# Build outputs
 *.exe
+*.out
+*.o
+*.obj
+
+# Runtime binary data
 *.dat
+temp_*.dat
+
+# Generated reports and logs
 donor_report.txt
 request_report.txt
+donation_report.txt
 activity_log.txt
+
+# Local editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

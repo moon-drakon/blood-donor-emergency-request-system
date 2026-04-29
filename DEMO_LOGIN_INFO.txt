@@ -1,0 +1,51 @@
+NSU Blood Donor System - Demo Login Info
+=======================================
+
+Admin Login
+-----------
+Admin: 1001 / admin123
+
+
+First 10 Donor Logins
+---------------------
+Donor 1 : ID 1  / password donor1
+Donor 2 : ID 2  / password donor2
+Donor 3 : ID 3  / password donor3
+Donor 4 : ID 4  / password donor4
+Donor 5 : ID 5  / password donor5
+Donor 6 : ID 6  / password donor6
+Donor 7 : ID 7  / password donor7
+Donor 8 : ID 8  / password donor8
+Donor 9 : ID 9  / password donor9
+Donor 10: ID 10 / password donor10
+
+
+First 10 Request Tracking Examples
+----------------------------------
+Request 1 : ID 1  / PIN 1001
+Request 2 : ID 2  / PIN 1002
+Request 3 : ID 3  / PIN 1003
+Request 4 : ID 4  / PIN 1004
+Request 5 : ID 5  / PIN 1005
+Request 6 : ID 6  / PIN 1006
+Request 7 : ID 7  / PIN 1007
+Request 8 : ID 8  / PIN 1008
+Request 9 : ID 9  / PIN 1009
+Request 10: ID 10 / PIN 1010
+
+
+Patterns
+--------
+Donor IDs: 1 to 139
+Donor passwords: donor1 to donor139
+Request IDs: 1 to 73
+Request PINs: 1001 to 1073
+
+Extra Examples
+--------------
+Donor 55 : ID 55  / password donor55
+Donor 100: ID 100 / password donor100
+Donor 139: ID 139 / password donor139
+Request 30: ID 30 / PIN 1030
+Request 60: ID 60 / PIN 1060
+Request 73: ID 73 / PIN 1073

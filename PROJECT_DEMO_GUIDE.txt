@@ -1,0 +1,274 @@
+NSU Blood Donor System - Project Demo Guide
+===========================================
+
+Use this guide when presenting or testing the project from main.c.
+
+
+Before Starting
+---------------
+Compile and run from the project folder:
+
+gcc main.c -o blood_system.exe
+.\blood_system.exe
+
+Default admin login:
+
+Admin ID : 1001
+Password : admin123
+
+When donors.dat and requests.dat are empty or missing, the program creates demo
+records automatically. The final setup keeps the demo data topped up to:
+
+- 139 approved donors
+- 73 emergency requests
+
+Useful demo logins:
+
+- Donor ID 1 / password donor1
+- Donor ID 2 / password donor2
+- Donor ID 10 / password donor10
+- Request ID 1 / PIN 1001
+- Request ID 2 / PIN 1002
+
+Important: use a donor whose blood group is compatible with the selected
+request and who is available. If a donor is already assigned to another active
+request, choose a different donor.
+
+
+Main Menu
+---------
+Access Menu options:
+
+1. Administrator Login
+2. Donor Login
+3. Donor Registration
+4. Guest Blood Request Services
+5. Requester Access / Track Request
+6. Forgot Password
+7. Exit
+
+
+Demo Flow 1: New Donor Registration and Admin Approval
+-----------------------------------------------------
+Goal: show that a new donor cannot use the system until admin approval.
+
+1. From Access Menu, choose 3. Donor Registration.
+2. Enter valid donor information.
+   - Age: 18 to 65
+   - Blood group: A+, A-, B+, B-, AB+, AB-, O+, or O-
+   - Phone and email must be valid and unique
+   - Last donation date: YYYY-MM-DD or Never
+   - Availability: 1 for available, 0 for unavailable
+   - Password: at least 6 characters with a letter and a number
+3. Save the generated Donor ID.
+4. Try Donor Login before approval to show Pending Approval behavior.
+5. From Access Menu, choose 1. Administrator Login.
+6. Login with 1001 / admin123.
+7. Choose 2. Donor Management.
+8. Choose 7. View Pending Donor Registrations.
+9. Choose 8. Manage Donor Approval Status.
+10. Enter the new Donor ID and choose Approved.
+11. Logout from admin.
+12. Login from 2. Donor Login using the new Donor ID and password.
+
+
+Demo Flow 2: Create and Track an Emergency Blood Request
+-------------------------------------------------------
+Goal: show requester/guest request creation and tracking PIN security.
+
+1. From Access Menu, choose 4. Guest Blood Request Services.
+2. Choose 1. Create Emergency Blood Request.
+3. Enter requester name, patient name, blood group, required bags, hospital,
+   location, contact number, and urgency.
+   - Required bags: 1 to 20
+   - Urgency: 1=Low, 2=Medium, 3=High, 4=Critical
+4. Save both generated values:
+   - Request ID
+   - Tracking PIN
+5. In Guest Blood Request Services, choose 4. View Open Emergency Requests.
+6. Choose 5. Track Request Status, or return to Access Menu and choose
+   5. Requester Access / Track Request.
+7. Enter the Request ID and Tracking PIN.
+8. In Requester Menu, choose 2. View This Request.
+
+
+Demo Flow 3: Donor Interest and Admin Assignment
+------------------------------------------------
+Goal: show donor matching, donor interest, and admin assignment.
+
+1. Login as an approved donor.
+2. In Donor Menu, choose 4. View Matching Blood Requests.
+3. Choose 5. Show Interest in a Request.
+4. Enter a matching Request ID.
+5. Choose 6. View My Interested Requests to show the saved interest.
+6. Logout from donor.
+7. Login as admin.
+8. Choose 4. Assignment Management.
+9. Choose 5. View Interested Donors.
+10. Select the request, then choose 1. Assign an interested donor.
+11. Enter the Assignment ID shown in the interested donor list.
+12. The assignment becomes Assigned.
+13. The request status updates to Partially Matched or Fully Matched depending
+    on how many bags are assigned compared with required bags.
+
+Alternative admin assignment path:
+
+1. Admin Menu -> 4. Assignment Management.
+2. Choose 2. Match Donors by Request ID to list compatible donors.
+3. Choose 6. Assign Donor, or accept the assign prompt after matching.
+4. Enter the Request ID and Donor ID.
+
+
+Demo Flow 4: Donation Completion and Two-Step Verification
+----------------------------------------------------------
+Goal: show that donation completion needs both requester confirmation and admin
+verification before it becomes final history.
+
+1. Login as the assigned donor.
+2. In Donor Menu, choose 7. View My Assigned Requests.
+3. Note the Assignment ID.
+4. Choose 8. Mark Donation Done.
+5. Enter the Assignment ID.
+6. The assignment becomes Donation Done, Waiting Verification.
+7. Logout from donor.
+8. From Access Menu, choose 5. Requester Access / Track Request.
+9. Enter the Request ID and Tracking PIN.
+10. In Requester Menu, choose 5. Confirm Completed Donation.
+11. Enter the same Assignment ID.
+12. Logout from requester menu.
+13. Login as admin.
+14. Choose 4. Assignment Management.
+15. Choose 10. Verify Donation.
+16. Select or enter the same Assignment ID.
+17. After both requester confirmation and admin verification:
+    - Assignment status becomes Verified / Completed.
+    - A record is saved in donations.dat.
+    - Donor donation count increases.
+    - Donor last donation date is updated.
+    - Donor availability becomes unavailable.
+    - Request verified bags increase.
+    - Request status becomes Partially Fulfilled or Fulfilled / Verified.
+
+Note: admin verification and requester confirmation can happen in either order.
+The donation is finalized only after both are complete.
+
+
+Demo Flow 5: Requester Self-Service
+-----------------------------------
+Goal: show requester actions using Request ID and Tracking PIN.
+
+1. From Access Menu, choose 5. Requester Access / Track Request.
+2. Enter a valid Request ID and Tracking PIN.
+3. Use Requester Menu options:
+   - 2. View This Request
+   - 3. View Assigned Donor Details
+   - 4. Increase Required Blood Bags
+   - 5. Confirm Completed Donation
+   - 6. Cancel This Request
+
+Rules to mention:
+
+- Required bags can only be increased.
+- Fulfilled or cancelled requests cannot be updated.
+- Cancelling a request cancels related non-verified assignments.
+
+
+Demo Flow 6: Reports, History, and Activity Log
+-----------------------------------------------
+Goal: show admin reporting and exported text files.
+
+1. Login as admin.
+2. Choose 5. Reports and Activity Log.
+3. Show:
+   - 1. Show Donor Summary
+   - 2. Show Request Summary
+   - 6. View All Donation History
+   - 9. View Activity Log
+4. Export:
+   - 3. Export Donor Report to TXT -> donor_report.txt
+   - 4. Export Request Report to TXT -> request_report.txt
+   - 5. Export Donation Report to TXT -> donation_report.txt
+
+
+Demo Flow 7: Public Guest Features
+----------------------------------
+Goal: show public access without exposing private donor details.
+
+1. From Access Menu, choose 4. Guest Blood Request Services.
+2. Choose 2. Search Donor by Blood Group.
+3. Choose 3. View Public Blood Group Availability.
+4. Choose 4. View Open Emergency Requests.
+
+Guest donor search hides private data such as full phone numbers, passwords,
+and donation history.
+
+
+Demo Flow 8: Admin Cleanup and Replacement
+------------------------------------------
+Goal: show admin control over assignments and cleanup behavior.
+
+1. Login as admin.
+2. Choose 4. Assignment Management.
+3. Use 8. Change Assigned Donor to replace an assigned donor.
+   - Old assignment status becomes Replaced.
+   - New donor receives an Assigned record.
+4. Use 9. Add Backup Donor to add an Interested backup donor.
+   - Backup donors do not count as assigned bags.
+5. Choose 3. Request Management from Admin Menu.
+6. Use 5. Delete Request or 6. Cancel Request.
+   - Non-verified assignments are cancelled.
+   - Verified donation history remains saved.
+7. Choose 2. Donor Management.
+8. Use 5. Delete Donor.
+   - Non-verified assignments for that donor are cancelled.
+   - Completed donation history remains available.
+
+
+Status Reference
+----------------
+Request statuses:
+
+0 = Pending
+1 = Donor Interested
+2 = Partially Matched
+3 = Fully Matched
+4 = Partially Fulfilled
+5 = Fulfilled / Verified
+6 = Cancelled
+
+Assignment statuses:
+
+0 = Interested
+1 = Assigned
+2 = Donation Done, Waiting Verification
+3 = Verified / Completed
+4 = Replaced
+5 = Cancelled
+
+Donor approval statuses:
+
+0 = Pending Approval
+1 = Approved
+2 = Rejected
+3 = Blocked
+
+
+Files Created or Updated
+------------------------
+Binary data files:
+
+- admins.dat
+- donors.dat
+- requests.dat
+- assignments.dat
+- donations.dat
+
+Readable output files:
+
+- donor_report.txt
+- request_report.txt
+- donation_report.txt
+- activity_log.txt
+
+
+End of Demo Guide
