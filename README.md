@@ -202,6 +202,14 @@ These are generated locally and ignored by Git:
 - Completed donation history is preserved when donors or requests are deleted;
   active non-verified assignments are cancelled.
 
+## Copyright and Usage
+
+Copyright (c) 2026 moon-drakon. All rights reserved.
+
+This repository is shared for portfolio review, academic demonstration, and
+learning reference only. Do not copy, redistribute, resubmit, sell, modify, or
+present this project as your own work without written permission.
+
 ## Suggested LinkedIn Description
 
 ```text

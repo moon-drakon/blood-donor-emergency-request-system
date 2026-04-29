@@ -110,4 +110,13 @@ Notes
 - See PROJECT_DEMO_GUIDE.txt for a step-by-step presentation script.
 
 
+Copyright and Usage
+-------------------
+Copyright (c) 2026 moon-drakon. All rights reserved.
+
+This repository is shared for portfolio review, academic demonstration, and
+learning reference only. Do not copy, redistribute, resubmit, sell, modify, or
+present this project as your own work without written permission.
+
+
 End of Document
